@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "Private Chat",
-  url: "https://pc.sitestash.org",
-  ogImage: "https://pc.sitestash.org/og.jpg",
+  url: "https://privatechat.vishkx.com",
+  ogImage: "https://privatechat.vishkx.com/og.jpg",
   description: "A private, self-destructing chat room.",
   links: {
     github: "https://github.com/vishkx/nextjs16_realtime_chat",
