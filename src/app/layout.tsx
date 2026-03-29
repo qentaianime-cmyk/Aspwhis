@@ -20,24 +20,17 @@ import {
 import "./globals.css";
 import { Providers } from "@/context/providers";
 
-// =======================
-// GOOGLE FONT REGISTRY
-// =======================
-
-// handwriting / notebook
 const architectsDaughter = Architects_Daughter({
   variable: "--font-architects-daughter",
   weight: "400",
   subsets: ["latin"],
 });
 
-// ui sans
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
 });
 
-// monospace themes
 const spaceMono = Space_Mono({
   variable: "--font-space-mono",
   weight: ["400", "700"],
@@ -54,7 +47,6 @@ const sourceCodePro = Source_Code_Pro({
   subsets: ["latin"],
 });
 
-// serif themes
 const merriweather = Merriweather({
   variable: "--font-merriweather",
   subsets: ["latin"],
@@ -76,7 +68,6 @@ const lora = Lora({
   subsets: ["latin"],
 });
 
-// sans-serif themes
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
@@ -93,26 +84,21 @@ const antic = Antic({
   subsets: ["latin"],
 });
 
-// monospace alternates
 const ibmPlexMono = IBM_Plex_Mono({
   variable: "--font-ibm-plex-mono",
   weight: ["400", "700"],
   subsets: ["latin"],
 });
 
-// already used in many themes
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
-// Next.js provides Geist Mono through Google Fonts
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
-// =======================
 
 export const metadata: Metadata = {
   title: "Private Chat",
