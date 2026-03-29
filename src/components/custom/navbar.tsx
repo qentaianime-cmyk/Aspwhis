@@ -47,20 +47,24 @@ export function Navbar() {
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="flex items-center justify-between px-4 py-3 max-w-5xl mx-auto">
-        <Link href="/" className="flex items-center gap-1.5 group">
-          <span className="text-primary font-mono font-bold text-lg tracking-tight">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 max-w-5xl mx-auto gap-2">
+        <Link href="/" className="shrink-0 flex items-center gap-1.5">
+          <span className="text-primary font-mono font-bold text-base sm:text-lg tracking-tight">
             {">"}<span className="text-foreground">aspzap</span>
           </span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
           <ThemeColorToggle />
           <AnimatedThemeToggler />
 
           {isAuthenticated && (
             <Link href="/search" title="Find people">
-              <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2 text-muted-foreground hover:text-foreground"
+              >
                 <SearchIcon />
                 <span className="sr-only">Search</span>
               </Button>
@@ -68,12 +72,16 @@ export function Navbar() {
           )}
 
           {isLoading ? (
-            <div className="w-20 h-8 rounded-md bg-muted animate-pulse" />
+            <div className="w-16 h-7 rounded-md bg-muted animate-pulse" />
           ) : isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="font-mono text-primary px-2">
-                  @{user!.username}
+            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+              <Link href="/dashboard" className="min-w-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="font-mono text-primary px-2 max-w-[100px] sm:max-w-[160px] truncate"
+                >
+                  <span className="truncate">@{user!.username}</span>
                 </Button>
               </Link>
               <Button
@@ -81,20 +89,20 @@ export function Navbar() {
                 size="sm"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="font-mono text-xs"
+                className="font-mono text-xs shrink-0"
               >
                 {loggingOut ? "..." : "logout"}
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Link href="/login">
-                <Button variant="ghost" size="sm" className="font-mono text-xs">
+                <Button variant="ghost" size="sm" className="font-mono text-xs px-2">
                   login
                 </Button>
               </Link>
               <Link href="/register">
-                <Button variant="outline" size="sm" className="font-mono text-xs">
+                <Button variant="outline" size="sm" className="font-mono text-xs px-2">
                   register
                 </Button>
               </Link>

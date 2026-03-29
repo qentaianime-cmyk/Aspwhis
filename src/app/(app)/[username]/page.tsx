@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
-import { useParams, useRouter, useTransition } from "next/navigation"
-import { useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useState, useTransition } from "react"
 
 interface ProfileData {
   username: string
