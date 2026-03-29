@@ -36,6 +36,13 @@ export async function middleware(req: NextRequest) {
   if (roomMatch) {
     const roomId = roomMatch[1]
 
+    const username = await getSessionUsername(req)
+    if (!username) {
+      const loginUrl = new URL("/login", req.url)
+      loginUrl.searchParams.set("next", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
     const meta = await redis.hgetall<{
       connected: string[]
       createdAt: number
