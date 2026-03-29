@@ -115,6 +115,15 @@ function Lobby() {
             <div className="warning-progress-bar" />
           </div>
         )}
+        {error === "unauthorized" && (
+          <div className="relative overflow-hidden bg-destructive/15 border border-destructive/50 p-4 text-center">
+            <p className="text-destructive text-sm font-bold">ACCESS DENIED</p>
+            <p className="text-muted-foreground text-xs mt-1">
+              You are not a participant in this room.
+            </p>
+            <div className="warning-progress-bar" />
+          </div>
+        )}
 
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold tracking-tight text-primary font-mono">

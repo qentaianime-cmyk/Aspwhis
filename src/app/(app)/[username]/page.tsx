@@ -2,10 +2,10 @@
 
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
-import { client } from "@/lib/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useParams, useRouter, useTransition } from "next/navigation"
+import { useState } from "react"
 
 interface ProfileData {
   username: string
@@ -49,6 +49,13 @@ function InitialsAvatar({ username }: { username: string }) {
   )
 }
 
+const TIMER_OPTIONS = [
+  { label: "1 hour", value: "1h" },
+  { label: "6 hours", value: "6h" },
+  { label: "24 hours", value: "24h" },
+  { label: "no expiry", value: null },
+]
+
 export default function ProfilePage() {
   const params = useParams()
   const username = (params.username as string).toLowerCase()
@@ -56,6 +63,8 @@ export default function ProfilePage() {
   const queryClient = useQueryClient()
   const router = useRouter()
   const [isNavigating, startTransition] = useTransition()
+  const [expiresIn, setExpiresIn] = useState<string | null>("1h")
+  const [showTimerPicker, setShowTimerPicker] = useState(false)
 
   const {
     data: profile,
@@ -86,12 +95,20 @@ export default function ProfilePage() {
 
   const { mutate: startRoom, isPending: isStartingRoom } = useMutation({
     mutationFn: async () => {
-      const res = await client.room.create.post({ maxConnected: 2 })
-      if (res.status === 200 && res.data?.roomId) {
-        startTransition(() => {
-          router.push(`/room/${res.data!.roomId}`)
-        })
+      const res = await fetch("/api/rooms/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ participantUsername: username, expiresIn }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to create room")
       }
+      const { roomId } = await res.json()
+      startTransition(() => {
+        router.push(`/room/${roomId}`)
+      })
     },
   })
 
@@ -175,14 +192,54 @@ export default function ProfilePage() {
             </Button>
 
             {canShowStartRoom && (
-              <Button
-                onClick={() => startRoom()}
-                disabled={isStartingRoom || isNavigating}
-                variant="outline"
-                className="w-full font-mono text-primary border-primary/40 hover:bg-primary/5"
-              >
-                {isStartingRoom || isNavigating ? "creating..." : "start private room"}
-              </Button>
+              <>
+                {showTimerPicker ? (
+                  <div className="space-y-2 rounded-xl border border-border bg-background p-3">
+                    <p className="text-xs text-muted-foreground font-mono">room self-destructs in</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {TIMER_OPTIONS.map((opt) => (
+                        <button
+                          key={String(opt.value)}
+                          onClick={() => setExpiresIn(opt.value)}
+                          className={`rounded-lg border px-3 py-2 text-xs font-mono transition-colors ${
+                            expiresIn === opt.value
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        onClick={() => startRoom()}
+                        disabled={isStartingRoom || isNavigating}
+                        className="flex-1 font-mono text-xs"
+                        size="sm"
+                      >
+                        {isStartingRoom || isNavigating ? "creating..." : "create room"}
+                      </Button>
+                      <Button
+                        onClick={() => setShowTimerPicker(false)}
+                        variant="ghost"
+                        size="sm"
+                        className="font-mono text-xs"
+                      >
+                        cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setShowTimerPicker(true)}
+                    variant="outline"
+                    className="w-full font-mono text-primary border-primary/40 hover:bg-primary/5"
+                  >
+                    start private room
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}

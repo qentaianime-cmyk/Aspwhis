@@ -47,10 +47,25 @@ export async function middleware(req: NextRequest) {
       connected: string[]
       createdAt: number
       maxConnected?: number
+      participants?: string
     }>(`meta:${roomId}`)
 
     if (!meta) {
       return NextResponse.redirect(new URL("/?error=room-not-found", req.url))
+    }
+
+    const participantsRaw = meta.participants
+    if (participantsRaw) {
+      let participants: string[]
+      try {
+        participants = JSON.parse(participantsRaw)
+      } catch {
+        participants = []
+      }
+
+      if (!participants.includes(username)) {
+        return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
+      }
     }
 
     const existingToken = req.cookies.get("x-auth-token")?.value

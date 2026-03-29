@@ -3,11 +3,60 @@
 import { Button } from "@/components/ui/button"
 import { Loading } from "@/components/ui/loading"
 import { useAuth } from "@/hooks/use-auth"
-import { client } from "@/lib/client"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
+
+interface ActiveRoom {
+  roomId: string
+  otherParticipant: string | null
+  expiresAt: string | null
+  secondsLeft: number | null
+  createdAt: string
+}
+
+function formatSecondsLeft(seconds: number): string {
+  if (seconds <= 0) return "expiring..."
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+  return `${Math.floor(seconds / 86400)}d`
+}
+
+function RoomCountdownBadge({ secondsLeft }: { secondsLeft: number | null }) {
+  const [current, setCurrent] = useState(secondsLeft)
+
+  useEffect(() => {
+    setCurrent(secondsLeft)
+    if (secondsLeft === null || secondsLeft <= 0) return
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev !== null && prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [secondsLeft])
+
+  if (current === null) {
+    return (
+      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
+        no expiry
+      </span>
+    )
+  }
+
+  const isUrgent = current < 300
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+        isUrgent
+          ? "bg-destructive/15 text-destructive"
+          : "bg-primary/10 text-primary"
+      }`}
+    >
+      {formatSecondsLeft(current)}
+    </span>
+  )
+}
 
 export default function DashboardPage() {
   const { user, isLoading, isAuthenticated } = useAuth()
@@ -21,14 +70,34 @@ export default function DashboardPage() {
     }
   }, [isLoading, isAuthenticated, router])
 
+  const { data: roomsData } = useQuery({
+    queryKey: ["active-rooms"],
+    queryFn: async () => {
+      const res = await fetch("/api/rooms", { credentials: "include" })
+      if (!res.ok) return { rooms: [] }
+      return res.json() as Promise<{ rooms: ActiveRoom[] }>
+    },
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+
   const { mutate: createRoom, isPending: isCreating } = useMutation({
     mutationFn: async () => {
-      const res = await client.room.create.post({ maxConnected: 2 })
-      if (res.status === 200 && res.data?.roomId) {
-        startTransition(() => {
-          router.push(`/room/${res.data!.roomId}`)
-        })
+      const res = await fetch("/api/rooms/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ participantUsername: null, expiresIn: "1h" }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to create room")
       }
+      const { roomId } = await res.json()
+      startTransition(() => {
+        router.push(`/room/${roomId}`)
+      })
     },
   })
 
@@ -48,6 +117,8 @@ export default function DashboardPage() {
   }
 
   if (!user) return null
+
+  const activeRooms = roomsData?.rooms ?? []
 
   return (
     <div className="w-full max-w-md space-y-4 px-4 py-8">
@@ -99,15 +170,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="pt-1 space-y-3">
-          <Button
-            onClick={() => createRoom()}
-            className="w-full font-mono"
-            size="lg"
-            disabled={isCreating || isNavigating}
-          >
-            {isCreating || isNavigating ? "CREATING..." : "+ CREATE SECURE ROOM"}
-          </Button>
-
           <Link href="/search" className="block">
             <Button variant="outline" size="sm" className="w-full font-mono text-xs">
               find people
@@ -125,19 +187,44 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {activeRooms.length > 0 && (
+        <div className="border border-border rounded-2xl bg-card/50 p-5 backdrop-blur-md space-y-3">
+          <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">
+            active rooms
+          </p>
+          <div className="space-y-2">
+            {activeRooms.map((room) => (
+              <Link
+                key={room.roomId}
+                href={`/room/${room.roomId}`}
+                className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 hover:border-primary/50 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-primary/60 font-mono text-xs">@</span>
+                  <span className="font-mono text-sm text-foreground">
+                    {room.otherParticipant ?? "unknown"}
+                  </span>
+                </div>
+                <RoomCountdownBadge secondsLeft={room.secondsLeft} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {user.following.length > 0 && (
         <div className="border border-border rounded-2xl bg-card/50 p-5 backdrop-blur-md space-y-3">
           <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">
             following
           </p>
           <div className="flex flex-wrap gap-2">
-            {user.following.map((username) => (
+            {user.following.map((uname) => (
               <Link
-                key={username}
-                href={`/${username}`}
+                key={uname}
+                href={`/${uname}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background text-xs font-mono text-foreground hover:border-primary/50 hover:text-primary transition-colors"
               >
-                <span className="text-primary/60">@</span>{username}
+                <span className="text-primary/60">@</span>{uname}
               </Link>
             ))}
           </div>
@@ -150,13 +237,13 @@ export default function DashboardPage() {
             followers
           </p>
           <div className="flex flex-wrap gap-2">
-            {user.followers.map((username) => (
+            {user.followers.map((uname) => (
               <Link
-                key={username}
-                href={`/${username}`}
+                key={uname}
+                href={`/${uname}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background text-xs font-mono text-foreground hover:border-primary/50 hover:text-primary transition-colors"
               >
-                <span className="text-primary/60">@</span>{username}
+                <span className="text-primary/60">@</span>{uname}
               </Link>
             ))}
           </div>
