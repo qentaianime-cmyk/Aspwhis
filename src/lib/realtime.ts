@@ -20,6 +20,10 @@ const schema = {
     typing: z.object({
       username: z.string(),
     }),
+    presence: z.object({
+      username: z.string(),
+      status: z.enum(["online", "away"]),
+    }),
   },
 }
 

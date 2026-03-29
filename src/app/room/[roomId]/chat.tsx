@@ -19,11 +19,21 @@ import { cn } from "@/lib/utils"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { useParams, useRouter } from "next/navigation"
-import { useCallback, useEffect, useRef, useState, useTransition } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
 
 const MAX_CHARS = 1000
 const WARN_CHARS = 800
 const TYPING_THROTTLE_MS = 2000
+const PRESENCE_INTERVAL_MS = 20_000
+const AWAY_TIMEOUT_MS = 30_000
+const VIRTUAL_THRESHOLD = 100
 
 function formatTimeRemaining(seconds: number) {
   if (seconds < 0) return "∞"
@@ -106,6 +116,31 @@ function TypingIndicator({ username }: { username: string }) {
   )
 }
 
+function PresenceBadge({ status }: { status: "online" | "away" | "offline" }) {
+  if (status === "online") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono text-green-500">
+        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+        online
+      </span>
+    )
+  }
+  if (status === "away") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono text-yellow-500">
+        <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full" />
+        away
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground/50">
+      <span className="w-1.5 h-1.5 bg-muted-foreground/30 rounded-full" />
+      offline
+    </span>
+  )
+}
+
 interface ChatPageProps {
   otherParticipant: string | null
   viewerUsername: string
@@ -121,14 +156,17 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
   const [input, setInput] = useState("")
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [typingUser, setTypingUser] = useState<string | null>(null)
+  const [otherPresence, setOtherPresence] = useState<"online" | "away" | "offline">("offline")
   const [showNewMessages, setShowNewMessages] = useState(false)
   const [destroyOpen, setDestroyOpen] = useState(false)
+  const [virtualOffset, setVirtualOffset] = useState(0)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lastTypingSentRef = useRef<number>(0)
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const presenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isAtBottomRef = useRef(true)
 
   useQuery({
@@ -182,6 +220,12 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
     },
   })
 
+  const { mutate: sendPresence } = useMutation({
+    mutationFn: async (status: "online" | "away") => {
+      await client.room.presence.post({ status }, { query: { roomId } })
+    },
+  })
+
   const handleTyping = useCallback(() => {
     const now = Date.now()
     if (now - lastTypingSentRef.current > TYPING_THROTTLE_MS) {
@@ -190,9 +234,27 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
     }
   }, [sendTyping])
 
+  useEffect(() => {
+    sendPresence("online")
+    const interval = setInterval(() => sendPresence("online"), PRESENCE_INTERVAL_MS)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        sendPresence("away")
+      } else {
+        sendPresence("online")
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      sendPresence("away")
+    }
+  }, [sendPresence])
+
   useRealtime({
     channels: [roomId],
-    events: ["chat.message", "chat.destroy", "chat.typing"],
+    events: ["chat.message", "chat.destroy", "chat.typing", "chat.presence"],
     onData: ({ event, data }) => {
       if (event === "chat.message") {
         refetch()
@@ -206,6 +268,19 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
           setTypingUser(typingData.username)
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
           typingTimeoutRef.current = setTimeout(() => setTypingUser(null), 3000)
+        }
+      }
+      if (event === "chat.presence") {
+        const presenceData = data as { username: string; status: "online" | "away" }
+        if (presenceData.username !== viewerUsername) {
+          if (presenceData.status === "online") {
+            setOtherPresence("online")
+            if (presenceTimeoutRef.current) clearTimeout(presenceTimeoutRef.current)
+            presenceTimeoutRef.current = setTimeout(() => setOtherPresence("away"), AWAY_TIMEOUT_MS)
+          } else {
+            setOtherPresence("away")
+            if (presenceTimeoutRef.current) clearTimeout(presenceTimeoutRef.current)
+          }
         }
       }
     },
@@ -232,8 +307,19 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
     if (isAtBottomRef.current) setShowNewMessages(false)
   }, [])
 
+  const allMessages = useMemo(() => (messagesData?.messages ?? []) as MessageType[], [messagesData])
+
+  const isVirtualized = allMessages.length > VIRTUAL_THRESHOLD
+  const displayedMessages = useMemo(() => {
+    if (!isVirtualized) return allMessages
+    return allMessages.slice(Math.max(0, allMessages.length - VIRTUAL_THRESHOLD - virtualOffset))
+  }, [allMessages, isVirtualized, virtualOffset])
+
+  const hasMoreMessages = isVirtualized && virtualOffset + VIRTUAL_THRESHOLD < allMessages.length
+  const groups = useMemo(() => groupMessages(displayedMessages, viewerUsername), [displayedMessages, viewerUsername])
+
   useEffect(() => {
-    if (messagesData?.messages) {
+    if (allMessages.length) {
       if (isAtBottomRef.current) {
         scrollToBottom()
         setShowNewMessages(false)
@@ -241,7 +327,7 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
         setShowNewMessages(true)
       }
     }
-  }, [messagesData, scrollToBottom])
+  }, [allMessages, scrollToBottom])
 
   useEffect(() => {
     if (typingUser && isAtBottomRef.current) {
@@ -274,9 +360,6 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
     handleTyping()
   }
 
-  const messages = messagesData?.messages ?? []
-  const groups = groupMessages(messages as MessageType[], viewerUsername)
-
   const charCount = input.length
   const isAtLimit = charCount >= MAX_CHARS
   const showCharCount = charCount >= WARN_CHARS
@@ -297,10 +380,11 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
             </svg>
           </button>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold font-mono text-foreground text-sm truncate">
                 {otherParticipant ? `@${otherParticipant}` : "private room"}
               </span>
+              <PresenceBadge status={otherPresence} />
             </div>
             {timeRemaining !== null && (
               <span
@@ -372,6 +456,17 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-4 space-y-3"
       >
+        {hasMoreMessages && (
+          <div className="text-center">
+            <button
+              onClick={() => setVirtualOffset((v) => v + VIRTUAL_THRESHOLD)}
+              className="text-xs font-mono text-muted-foreground hover:text-foreground border border-border rounded-full px-3 py-1.5 transition-colors"
+            >
+              load earlier messages ({allMessages.length - VIRTUAL_THRESHOLD - virtualOffset} more)
+            </button>
+          </div>
+        )}
+
         {isMessagesLoading && (
           <div className="flex flex-col gap-3">
             {[...Array(5)].map((_, i) => (
@@ -382,7 +477,7 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
           </div>
         )}
 
-        {!isMessagesLoading && messages.length === 0 && (
+        {!isMessagesLoading && allMessages.length === 0 && (
           <div className="flex items-center justify-center h-full min-h-[40vh]">
             <p className="text-muted-foreground/50 text-sm font-mono text-center px-4">
               no messages yet — say hello!
