@@ -54,18 +54,21 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/?error=room-not-found", req.url))
     }
 
-    const participantsRaw = meta.participants
-    if (participantsRaw) {
-      let participants: string[]
+    let participants: string[] | null = null
+    if (meta.participants) {
       try {
-        participants = JSON.parse(participantsRaw)
+        participants = JSON.parse(meta.participants)
       } catch {
         participants = []
       }
+    }
 
-      if (!participants.includes(username)) {
-        return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
-      }
+    if (participants === null) {
+      return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
+    }
+
+    if (!participants.includes(username)) {
+      return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
     }
 
     const existingToken = req.cookies.get("x-auth-token")?.value

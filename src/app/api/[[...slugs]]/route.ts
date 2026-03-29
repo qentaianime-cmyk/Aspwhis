@@ -8,9 +8,6 @@ import { authMiddleware } from "./auth"
 import { z } from "zod"
 import { Message, realtime } from "@/lib/realtime"
 
-const ROOM_TTL_SECONDS = 60 * 10
-const DEFAULT_MAX_CONNECTED = 2
-
 async function getUsernameFromCookieValue(authTokenValue: string | undefined): Promise<string | null> {
   if (!authTokenValue) return null
   const uuid = verifyToken(authTokenValue)
@@ -19,33 +16,6 @@ async function getUsernameFromCookieValue(authTokenValue: string | undefined): P
 }
 
 const rooms = new Elysia({ prefix: "/room" })
-  .post(
-    "/create",
-    async ({ body }) => {
-      const roomId = nanoid()
-      const maxConnected = body?.maxConnected ?? DEFAULT_MAX_CONNECTED
-
-      await redis.hset(`meta:${roomId}`, {
-        connected: [],
-        createdAt: Date.now(),
-        maxConnected,
-      })
-
-      await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS)
-
-      return { roomId }
-    },
-    {
-      body: z.object({
-        maxConnected: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .default(DEFAULT_MAX_CONNECTED),
-      }),
-    }
-  )
   .use(authMiddleware)
   .get(
     "/ttl",
@@ -81,24 +51,29 @@ const messages = new Elysia({ prefix: "/messages" })
   .use(authMiddleware)
   .post(
     "/",
-    async ({ body, auth, cookie }) => {
+    async ({ body, auth, cookie, set }) => {
       const { text } = body
       const { roomId } = auth
 
       const roomExists = await redis.exists(`meta:${roomId}`)
 
       if (!roomExists) {
-        throw new Error("Room does not exist")
+        set.status = 400
+        return { error: "Room does not exist" }
       }
 
       const sessionUsername = await getUsernameFromCookieValue(
         (cookie as Record<string, { value?: string }>)["authToken"]?.value
       )
-      const sender = sessionUsername ?? body.sender
+
+      if (!sessionUsername) {
+        set.status = 401
+        return { error: "Unauthorized: no valid session" }
+      }
 
       const message: Message = {
         id: nanoid(),
-        sender,
+        sender: sessionUsername,
         text,
         timestamp: Date.now(),
         roomId,
@@ -116,7 +91,6 @@ const messages = new Elysia({ prefix: "/messages" })
     {
       query: z.object({ roomId: z.string() }),
       body: z.object({
-        sender: z.string().max(100).optional().default(""),
         text: z.string().max(1000),
       }),
     }

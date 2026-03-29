@@ -1,13 +1,11 @@
 "use client";
 
-
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import { useUsername } from "@/hooks/use-username";
-import { client } from "@/lib/client";
-import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState, useTransition, useRef } from "react";
+import { Suspense, useEffect, useTransition, useRef } from "react";
 
 const Page = () => {
   return (
@@ -20,10 +18,9 @@ const Page = () => {
 export default Page;
 
 function Lobby() {
-  const { username } = useUsername();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [maxConnected, setMaxConnected] = useState(2);
   const [isNavigating, startTransition] = useTransition();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -35,13 +32,11 @@ function Lobby() {
   useEffect(() => {
     if (!searchParamsString) return;
 
-    // Clear any existing timer
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
 
     timerRef.current = setTimeout(() => {
-      // Only replace if we're still on the home page
       if (pathname === "/") {
         router.replace(pathname);
       }
@@ -54,7 +49,6 @@ function Lobby() {
     };
   }, [pathname, router, searchParamsString]);
 
-  // Clear timer when navigation starts
   useEffect(() => {
     if (isNavigating && timerRef.current) {
       clearTimeout(timerRef.current);
@@ -62,32 +56,12 @@ function Lobby() {
     }
   }, [isNavigating]);
 
-  const { mutate: createRoom, isPending } = useMutation({
-    mutationFn: async () => {
-      const res = await client.room.create.post({ maxConnected });
-
-      if (res.status === 200) {
-        // Clear timer before navigating
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-        
-        startTransition(() => {
-          router.push(`/room/${res.data?.roomId}`);
-        });
-      }
-    },
-  });
-
-  const isLoading = isPending || isNavigating;
-
   return (
     <main className="flex flex-col items-center justify-center p-4">
       {isNavigating && (
-        <Loading overlay message="Navigating to room..." />
+        <Loading overlay message="Navigating..." />
       )}
-      <div className="w-full max-w-md space-y-8 ">
+      <div className="w-full max-w-md space-y-8">
         {wasDestroyed && (
           <div className="relative overflow-hidden bg-destructive/15 border border-destructive/50 p-4 text-center">
             <p className="text-destructive text-sm font-bold">ROOM DESTROYED</p>
@@ -134,54 +108,42 @@ function Lobby() {
           </p>
         </div>
 
-        <div className="border border-border rounded-2xl bg-card/50 p-6 backdrop-blur-md">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <label className="flex items-center text-muted-foreground">
-                Your Identity
-              </label>
+        <div className="border border-border rounded-2xl bg-card/50 p-6 backdrop-blur-md space-y-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Rooms are private and participant-restricted. Sign in to create or join a room with someone you follow.
+          </p>
 
-              <div className="flex items-center gap-3">
-                <div className="flex-1 rounded-md bg-background border border-border px-3 py-2 text-sm text-muted-foreground font-mono">
-                  {username || "--"}
-                </div>
-              </div>
-            </div>
+          {isLoading ? null : isAuthenticated ? (
             <div className="space-y-2">
-              <label className="flex items-center text-muted-foreground">
-                Max Connected Users
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={maxConnected}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (Number.isNaN(value)) {
-                      setMaxConnected(1);
-                      return;
-                    }
-                    setMaxConnected(Math.max(1, Math.min(20, value)));
-                  }}
-                  className="flex-1 rounded-md bg-background border border-border px-3 py-2 text-sm text-foreground"
-                />
-              </div>
-              <p className="text-muted-foreground text-xs">
-                Allow between 1 and 20 users to join this room.
-              </p>
+              <Button
+                className="w-full font-mono"
+                size="lg"
+                onClick={() => startTransition(() => router.push("/dashboard"))}
+              >
+                go to dashboard
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full font-mono text-xs"
+                onClick={() => startTransition(() => router.push("/search"))}
+              >
+                find people to chat with
+              </Button>
             </div>
-
-            <Button
-              onClick={() => createRoom()}
-              className="w-full"
-              size="lg"
-              disabled={!username || isLoading}
-            >
-              {isLoading ? "CREATING..." : "CREATE SECURE ROOM"}
-            </Button>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <Link href="/login" className="block">
+                <Button className="w-full font-mono" size="lg">
+                  sign in
+                </Button>
+              </Link>
+              <Link href="/register" className="block">
+                <Button variant="outline" className="w-full font-mono text-xs">
+                  create account
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </main>
