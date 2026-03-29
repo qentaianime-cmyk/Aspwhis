@@ -1,4 +1,4 @@
-const DEV_SECRET = "dev-only-secret-do-not-use-in-prod-min32ch"
+const DEV_SECRET = "dev-only-secret-do-not-use-in-prod-32chars"
 
 function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2)

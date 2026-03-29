@@ -87,18 +87,24 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-border bg-background px-4 py-3 text-center">
+          <Link
+            href={`/u/${user.username}/followers`}
+            className="rounded-xl border border-border bg-background px-4 py-3 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors"
+          >
             <p className="text-2xl font-bold font-mono text-foreground">
               {user.followers.length}
             </p>
             <p className="text-xs text-muted-foreground font-mono mt-0.5">followers</p>
-          </div>
-          <div className="rounded-xl border border-border bg-background px-4 py-3 text-center">
+          </Link>
+          <Link
+            href={`/u/${user.username}/following`}
+            className="rounded-xl border border-border bg-background px-4 py-3 text-center hover:border-primary/50 hover:bg-muted/30 transition-colors"
+          >
             <p className="text-2xl font-bold font-mono text-foreground">
               {user.following.length}
             </p>
             <p className="text-xs text-muted-foreground font-mono mt-0.5">following</p>
-          </div>
+          </Link>
         </div>
 
         <div className="pt-1 space-y-3">

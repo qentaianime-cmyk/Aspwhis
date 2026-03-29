@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -18,6 +19,7 @@ function getUsernameHint(value: string): { ok: boolean; msg: string } | null {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -49,7 +51,19 @@ export default function RegisterPage() {
         return
       }
 
-      router.push("/login?registered=1")
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username: normalised, password }),
+      })
+
+      if (loginRes.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["auth", "me"] })
+        router.push("/dashboard")
+      } else {
+        router.push("/login?registered=1")
+      }
     } catch {
       setError("Network error. Please check your connection.")
     } finally {
