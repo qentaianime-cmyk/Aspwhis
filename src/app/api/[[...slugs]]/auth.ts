@@ -1,4 +1,5 @@
 import { redis } from "@/lib/redis"
+import { verifyToken } from "@/lib/session"
 import Elysia from "elysia"
 
 class AuthError extends Error {
@@ -17,18 +18,53 @@ export const authMiddleware = new Elysia({ name: "auth" })
     }
   })
   .derive({ as: "scoped" }, async ({ query, cookie }) => {
-    const roomId = query.roomId
-    const token = cookie["x-auth-token"].value as string | undefined
+    const roomId = query.roomId as string | undefined
+    const xAuthToken = (cookie as Record<string, { value?: string }>)["x-auth-token"]?.value
 
-    if (!roomId || !token) {
+    if (!roomId || !xAuthToken) {
       throw new AuthError("Missing roomId or token.")
     }
 
-    const connected = await redis.hget<string[]>(`meta:${roomId}`, "connected")
-
-    if (!connected?.includes(token)) {
-      throw new AuthError("Invalid token")
+    const authTokenValue = (cookie as Record<string, { value?: string }>)["authToken"]?.value
+    if (!authTokenValue) {
+      throw new AuthError("No authenticated session.")
     }
 
-    return { auth: { roomId, token, connected } }
+    const uuid = verifyToken(authTokenValue)
+    if (!uuid) {
+      throw new AuthError("Invalid session token.")
+    }
+
+    const username = await redis.get<string>(`session:${uuid}`)
+    if (!username) {
+      throw new AuthError("Session expired or not found.")
+    }
+
+    const meta = await redis.hgetall<{
+      connected: string[]
+      participants?: string
+    }>(`meta:${roomId}`)
+
+    if (!meta) {
+      throw new AuthError("Room not found.")
+    }
+
+    if (!meta.connected?.includes(xAuthToken)) {
+      throw new AuthError("Invalid room token.")
+    }
+
+    let participants: string[] | null = null
+    if (meta.participants) {
+      try {
+        participants = JSON.parse(meta.participants)
+      } catch {
+        participants = []
+      }
+    }
+
+    if (participants === null || !participants.includes(username)) {
+      throw new AuthError("Not a participant in this room.")
+    }
+
+    return { auth: { roomId, token: xAuthToken, connected: meta.connected, username } }
   })

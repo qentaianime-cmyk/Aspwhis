@@ -1,19 +1,11 @@
 import { connectDB } from "@/lib/db"
 import { redis } from "@/lib/redis"
-import { verifyToken } from "@/lib/session"
 import Room from "@/models/Room"
 import { Elysia } from "elysia"
 import { nanoid } from "nanoid"
 import { authMiddleware } from "./auth"
 import { z } from "zod"
 import { Message, realtime } from "@/lib/realtime"
-
-async function getUsernameFromCookieValue(authTokenValue: string | undefined): Promise<string | null> {
-  if (!authTokenValue) return null
-  const uuid = verifyToken(authTokenValue)
-  if (!uuid) return null
-  return redis.get<string>(`session:${uuid}`)
-}
 
 const rooms = new Elysia({ prefix: "/room" })
   .use(authMiddleware)
@@ -51,9 +43,9 @@ const messages = new Elysia({ prefix: "/messages" })
   .use(authMiddleware)
   .post(
     "/",
-    async ({ body, auth, cookie, set }) => {
+    async ({ body, auth, set }) => {
       const { text } = body
-      const { roomId } = auth
+      const { roomId, username } = auth
 
       const roomExists = await redis.exists(`meta:${roomId}`)
 
@@ -62,18 +54,9 @@ const messages = new Elysia({ prefix: "/messages" })
         return { error: "Room does not exist" }
       }
 
-      const sessionUsername = await getUsernameFromCookieValue(
-        (cookie as Record<string, { value?: string }>)["authToken"]?.value
-      )
-
-      if (!sessionUsername) {
-        set.status = 401
-        return { error: "Unauthorized: no valid session" }
-      }
-
       const message: Message = {
         id: nanoid(),
-        sender: sessionUsername,
+        sender: username,
         text,
         timestamp: Date.now(),
         roomId,
