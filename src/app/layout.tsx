@@ -101,8 +101,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Private Chat",
-  description: "A private, self-destructing chat room.",
+  title: "aspzap",
+  description: "Private, self-destructing chat rooms. Share your @handle, not a link.",
 };
 
 export default function RootLayout({

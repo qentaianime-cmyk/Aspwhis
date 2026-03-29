@@ -117,11 +117,11 @@ function Lobby() {
         )}
 
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight text-primary">
-            {">"}private_chat
+          <h1 className="text-2xl font-bold tracking-tight text-primary font-mono">
+            {">"}<span className="text-foreground">aspzap</span>
           </h1>
           <p className="text-muted-foreground text-sm">
-            A private, self-destructing chat room.
+            Private, self-destructing chat rooms.
           </p>
         </div>
 

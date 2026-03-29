@@ -1,17 +1,11 @@
 export const siteConfig = {
-  name: "Private Chat",
-  url: "https://privatechat.vishkx.com",
-  ogImage: "https://privatechat.vishkx.com/og.jpg",
-  description: "A private, self-destructing chat room.",
+  name: "aspzap",
+  url: "https://aspzap.replit.app",
+  ogImage: "https://aspzap.replit.app/og.jpg",
+  description: "Private, self-destructing chat rooms. Share your @handle, not a link.",
   links: {
     github: "https://github.com/vishkx/nextjs16_realtime_chat",
   },
-  navItems: [
-    {
-      href: "/",
-      label: "Home",
-    },
-  ],
 }
 
 export const META_THEME_COLORS = {

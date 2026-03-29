@@ -43,7 +43,6 @@ const UserSchema = new Schema<IUser>(
   }
 )
 
-UserSchema.index({ username: 1 }, { unique: true })
 UserSchema.index({ username: "text" })
 
 UserSchema.statics.findByUsername = function (username: string) {
