@@ -34,11 +34,24 @@ export async function connectDB(): Promise<typeof mongoose> {
       })
       .then((m) => {
         console.log("[MongoDB] Connected")
+
+        m.connection.on("disconnected", () => {
+          console.warn("[MongoDB] Disconnected — will attempt reconnect")
+          cached.conn = null
+          cached.promise = null
+        })
+        m.connection.on("reconnected", () => {
+          console.log("[MongoDB] Reconnected")
+        })
+        m.connection.on("error", (err) => {
+          console.error("[MongoDB] Connection error:", err)
+        })
+
         return m
       })
       .catch((err) => {
         cached.promise = null
-        console.error("[MongoDB] Connection error:", err)
+        console.error("[MongoDB] Initial connection error:", err)
         throw err
       })
   }

@@ -72,7 +72,18 @@ export async function POST(req: NextRequest) {
     await User.create({ username: normalised, hash })
 
     return NextResponse.json({ success: true, username: normalised }, { status: 201 })
-  } catch (err) {
+  } catch (err: unknown) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: unknown }).code === 11000
+    ) {
+      return NextResponse.json(
+        { error: "That username is already taken." },
+        { status: 409 }
+      )
+    }
     console.error("[register]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
