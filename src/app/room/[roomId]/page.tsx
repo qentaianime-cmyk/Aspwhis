@@ -40,5 +40,7 @@ export default async function RoomPage({
     redirect("/?error=unauthorized")
   }
 
-  return <ChatPage />
+  const otherParticipant = room!.participants.find((p) => p !== username) ?? null
+
+  return <ChatPage otherParticipant={otherParticipant} viewerUsername={username} />
 }

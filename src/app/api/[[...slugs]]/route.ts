@@ -17,6 +17,13 @@ const rooms = new Elysia({ prefix: "/room" })
     },
     { query: z.object({ roomId: z.string() }) }
   )
+  .post(
+    "/typing",
+    async ({ auth }) => {
+      await realtime.channel(auth.roomId).emit("chat.typing", { username: auth.username })
+    },
+    { query: z.object({ roomId: z.string() }) }
+  )
   .delete(
     "/",
     async ({ auth }) => {

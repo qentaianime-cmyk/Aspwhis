@@ -105,6 +105,13 @@ export const metadata: Metadata = {
   description: "Private, self-destructing chat rooms. Share your @handle, not a link.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  interactiveWidget: "resizes-content",
+};
+
 export default function RootLayout({
   children,
 }: {
