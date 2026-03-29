@@ -12,13 +12,21 @@ A private, self-destructing realtime chat platform built with Next.js 16, MongoD
 - **Database**: MongoDB (Mongoose) for users/rooms + Upstash Redis for sessions/rate-limiting/room metadata
 - **Auth**: HMAC-SHA256 signed session tokens in httpOnly cookies; verified by middleware and API routes
 
+## Social API Endpoints
+- `GET /api/users/[username]` — public profile (follower/following counts, isFollowing, isMutual)
+- `POST /api/users/follow` — follow a user (authenticated)
+- `DELETE /api/users/follow` — unfollow a user (authenticated)
+- `GET /api/users/search?q=` — username prefix search, up to 20 results (authenticated)
+
 ## Key Files
 - `src/app/layout.tsx` — Root layout with Google Fonts registry
 - `src/app/(app)/layout.tsx` — App shell with Navbar
 - `src/app/(app)/page.tsx` — Lobby page (create room)
 - `src/app/(app)/login/page.tsx` — Login form
 - `src/app/(app)/register/page.tsx` — Registration form
-- `src/app/(app)/dashboard/page.tsx` — User dashboard (protected)
+- `src/app/(app)/dashboard/page.tsx` — User dashboard (protected, with social section)
+- `src/app/(app)/[username]/page.tsx` — Public profile page (follow/unfollow, start room)
+- `src/app/(app)/search/page.tsx` — User search with debounced input
 - `src/app/room/[id]/page.tsx` — Chat room page
 - `src/app/api/[[...slugs]]/route.ts` — Elysia backend (rooms, messages)
 - `src/app/api/auth/*/route.ts` — Auth REST endpoints (register/login/logout/me)
