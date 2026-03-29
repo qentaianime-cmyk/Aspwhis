@@ -8,6 +8,7 @@ const getApiUrl = () => {
   if (typeof window !== "undefined") {
     return window.location.origin
   }
+  // Replit dev server always runs on port 5000
   return "http://localhost:5000"
 }
 

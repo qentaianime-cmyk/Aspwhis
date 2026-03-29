@@ -15,7 +15,8 @@ function LoginForm() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const next = searchParams.get("next") ?? "/dashboard"
+  const rawNext = searchParams.get("next") ?? "/dashboard"
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard"
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
