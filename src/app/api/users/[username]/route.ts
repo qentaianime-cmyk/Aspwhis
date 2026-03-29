@@ -33,20 +33,19 @@ export async function GET(
       ? target.followers.includes(viewerUsername)
       : false
 
-    const isMutual =
-      viewerUsername && isFollowing
-        ? target.following.includes(viewerUsername) ||
-          (await User.findByUsername(viewerUsername).then(
-            (v) => v?.followers.includes(targetUsername) ?? false
-          ))
-        : false
+    const isFollowedBy = viewerUsername
+      ? target.following.includes(viewerUsername)
+      : false
+
+    const isMutual = isFollowing && isFollowedBy
 
     return NextResponse.json({
       username: target.username,
       followerCount: target.followers.length,
       followingCount: target.following.length,
       isFollowing,
-      isMutual: !!isMutual,
+      isFollowedBy,
+      isMutual,
       isOwnProfile: viewerUsername === targetUsername,
     })
   } catch (err) {
