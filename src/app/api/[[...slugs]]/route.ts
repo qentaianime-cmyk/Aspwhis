@@ -21,7 +21,7 @@ const rooms = new Elysia({ prefix: "/room" })
     "/ttl",
     async ({ auth }) => {
       const ttl = await redis.ttl(`meta:${auth.roomId}`)
-      return { ttl: ttl > 0 ? ttl : 0 }
+      return { ttl: ttl >= 0 ? ttl : -1 }
     },
     { query: z.object({ roomId: z.string() }) }
   )
@@ -84,9 +84,13 @@ const messages = new Elysia({ prefix: "/messages" })
 
       const remaining = await redis.ttl(`meta:${roomId}`)
 
-      await redis.expire(`messages:${roomId}`, remaining)
-      await redis.expire(`history:${roomId}`, remaining)
-      await redis.expire(roomId, remaining)
+      if (remaining > 0) {
+        await Promise.all([
+          redis.expire(`messages:${roomId}`, remaining),
+          redis.expire(`history:${roomId}`, remaining),
+          redis.expire(roomId, remaining),
+        ])
+      }
     },
     {
       query: z.object({ roomId: z.string() }),

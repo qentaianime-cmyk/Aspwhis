@@ -3,10 +3,10 @@
 import { Button } from "@/components/ui/button"
 import { Loading } from "@/components/ui/loading"
 import { useAuth } from "@/hooks/use-auth"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 
 interface ActiveRoom {
   roomId: string
@@ -62,7 +62,6 @@ export default function DashboardPage() {
   const { user, isLoading, isAuthenticated } = useAuth()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [isNavigating, startTransition] = useTransition()
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -80,25 +79,6 @@ export default function DashboardPage() {
     enabled: isAuthenticated,
     staleTime: 30_000,
     refetchInterval: 60_000,
-  })
-
-  const { mutate: createRoom, isPending: isCreating } = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/rooms/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ participantUsername: null, expiresIn: "1h" }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? "Failed to create room")
-      }
-      const { roomId } = await res.json()
-      startTransition(() => {
-        router.push(`/room/${roomId}`)
-      })
-    },
   })
 
   async function handleLogout() {
@@ -122,10 +102,6 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full max-w-md space-y-4 px-4 py-8">
-      {(isCreating || isNavigating) && (
-        <Loading overlay message="Creating room..." />
-      )}
-
       <div className="border border-border rounded-2xl bg-card/50 p-6 backdrop-blur-md space-y-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5">
@@ -172,9 +148,12 @@ export default function DashboardPage() {
         <div className="pt-1 space-y-3">
           <Link href="/search" className="block">
             <Button variant="outline" size="sm" className="w-full font-mono text-xs">
-              find people
+              find people & start a room
             </Button>
           </Link>
+          <p className="text-center text-[10px] text-muted-foreground font-mono">
+            visit someone's profile to start a private room
+          </p>
 
           <Button
             variant="ghost"
