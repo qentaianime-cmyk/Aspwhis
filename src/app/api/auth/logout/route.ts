@@ -1,11 +1,15 @@
 import { redis } from "@/lib/redis"
+import { verifyToken } from "@/lib/session"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get("authToken")?.value
+  const signedToken = req.cookies.get("authToken")?.value
 
-  if (token) {
-    await redis.del(`session:${token}`)
+  if (signedToken) {
+    const uuid = verifyToken(signedToken)
+    if (uuid) {
+      await redis.del(`session:${uuid}`)
+    }
   }
 
   const response = NextResponse.json({ success: true }, { status: 200 })

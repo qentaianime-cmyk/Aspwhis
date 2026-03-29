@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/db"
 import { RATE_LIMITS, rateLimit } from "@/lib/rate-limit"
 import { redis } from "@/lib/redis"
+import { signToken } from "@/lib/session"
 import User from "@/models/User"
 import bcrypt from "bcryptjs"
 import { NextRequest, NextResponse } from "next/server"
@@ -57,15 +58,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const token = crypto.randomUUID()
-    await redis.set(`session:${token}`, user.username, { ex: SESSION_TTL_SECONDS })
+    const uuid = crypto.randomUUID()
+    const signedToken = signToken(uuid)
+
+    await redis.set(`session:${uuid}`, user.username, { ex: SESSION_TTL_SECONDS })
 
     const response = NextResponse.json(
       { success: true, username: user.username },
       { status: 200 }
     )
 
-    response.cookies.set("authToken", token, {
+    response.cookies.set("authToken", signedToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
