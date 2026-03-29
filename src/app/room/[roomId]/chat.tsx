@@ -352,12 +352,11 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
-    if (val.length > MAX_CHARS) return
-    setInput(val)
+    setInput(val.slice(0, MAX_CHARS))
     const ta = e.target
     ta.style.height = "auto"
     ta.style.height = Math.min(ta.scrollHeight, 120) + "px"
-    handleTyping()
+    if (val.length <= MAX_CHARS) handleTyping()
   }
 
   const charCount = input.length
@@ -517,11 +516,10 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
               onKeyDown={handleTextareaKeyDown}
               placeholder="message..."
               rows={1}
-              disabled={isAtLimit}
               autoFocus
               className={cn(
                 "w-full resize-none overflow-hidden rounded-2xl border bg-background px-4 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary transition-colors",
-                isAtLimit && "opacity-60"
+                isAtLimit && "ring-1 ring-destructive border-destructive"
               )}
               style={{ minHeight: "40px", maxHeight: "120px" }}
             />
@@ -529,17 +527,17 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
               <span
                 className={cn(
                   "absolute right-3 bottom-2 text-[10px] font-mono",
-                  isAtLimit ? "text-destructive" : "text-muted-foreground/60"
+                  isAtLimit ? "text-destructive font-bold" : "text-muted-foreground/60"
                 )}
               >
-                {MAX_CHARS - charCount}
+                {MAX_CHARS - charCount} left
               </span>
             )}
           </div>
 
           <button
             onClick={handleSendMessage}
-            disabled={!input.trim() || isPending || isAtLimit}
+            disabled={!input.trim() || isPending}
             className="shrink-0 mb-0.5 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Send message"
           >
