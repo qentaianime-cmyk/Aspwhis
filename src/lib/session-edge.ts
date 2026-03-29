@@ -1,5 +1,9 @@
 const DEV_SECRET = "dev-only-secret-do-not-use-in-prod-32chars"
 
+if (process.env.NODE_ENV === "production" && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32)) {
+  throw new Error("SESSION_SECRET must be set and at least 32 characters in production")
+}
+
 function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2)
   for (let i = 0; i < hex.length; i += 2) {

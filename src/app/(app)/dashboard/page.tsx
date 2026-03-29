@@ -5,6 +5,7 @@ import { Loading } from "@/components/ui/loading"
 import { useAuth } from "@/hooks/use-auth"
 import { client } from "@/lib/client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useTransition } from "react"
 
