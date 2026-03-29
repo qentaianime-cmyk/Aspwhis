@@ -17,6 +17,35 @@ async function getSessionUsername(req: NextRequest): Promise<string | null> {
   return username ?? null
 }
 
+function parseParticipants(value: unknown): string[] | null {
+  if (!value) return null
+  // Upstash auto-parses JSON — value may already be an array
+  if (Array.isArray(value)) return value as string[]
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function parseConnected(value: unknown): string[] {
+  if (!value) return []
+  if (Array.isArray(value)) return value as string[]
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
@@ -44,24 +73,17 @@ export async function middleware(req: NextRequest) {
     }
 
     const meta = await redis.hgetall<{
-      connected: string[]
+      connected: unknown
       createdAt: number
       maxConnected?: number
-      participants?: string
+      participants?: unknown
     }>(`meta:${roomId}`)
 
     if (!meta) {
       return NextResponse.redirect(new URL("/?error=room-not-found", req.url))
     }
 
-    let participants: string[] | null = null
-    if (meta.participants) {
-      try {
-        participants = JSON.parse(meta.participants)
-      } catch {
-        participants = []
-      }
-    }
+    const participants = parseParticipants(meta.participants)
 
     if (participants === null) {
       return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
@@ -71,15 +93,16 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
     }
 
+    const connected = parseConnected(meta.connected)
     const existingToken = req.cookies.get("x-auth-token")?.value
 
-    if (existingToken && meta.connected.includes(existingToken)) {
+    if (existingToken && connected.includes(existingToken)) {
       return NextResponse.next()
     }
 
     const maxConnected = meta.maxConnected ?? 2
 
-    if (meta.connected.length >= maxConnected) {
+    if (connected.length >= maxConnected) {
       return NextResponse.redirect(new URL("/?error=room-full", req.url))
     }
 
@@ -94,7 +117,7 @@ export async function middleware(req: NextRequest) {
     })
 
     await redis.hset(`meta:${roomId}`, {
-      connected: [...meta.connected, token],
+      connected: [...connected, token],
     })
 
     return response

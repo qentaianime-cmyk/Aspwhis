@@ -13,8 +13,8 @@ function SearchIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -48,22 +48,34 @@ export function Navbar() {
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 max-w-5xl mx-auto gap-2">
-        <Link href="/" className="shrink-0 flex items-center gap-1.5">
-          <span className="text-primary font-mono font-bold text-base sm:text-lg tracking-tight">
+
+        {/* Logo — always visible, never shrinks */}
+        <Link href="/" className="shrink-0 flex items-center gap-1">
+          <span className="text-primary font-mono font-bold text-base tracking-tight">
             {">"}<span className="text-foreground">aspzap</span>
           </span>
         </Link>
 
-        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-          <ThemeColorToggle />
-          <AnimatedThemeToggler />
+        {/* Right side controls */}
+        <div className="flex items-center gap-1 min-w-0 overflow-hidden">
 
+          {/* Theme color picker — fixed narrow width */}
+          <div className="w-[52px] shrink-0">
+            <ThemeColorToggle />
+          </div>
+
+          {/* Dark/light toggle */}
+          <div className="shrink-0">
+            <AnimatedThemeToggler />
+          </div>
+
+          {/* Search icon — only when authenticated */}
           {isAuthenticated && (
-            <Link href="/search" title="Find people">
+            <Link href="/search" title="Find people" className="shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
-                className="px-2 text-muted-foreground hover:text-foreground"
+                className="px-1.5 text-muted-foreground hover:text-foreground h-7 w-7"
               >
                 <SearchIcon />
                 <span className="sr-only">Search</span>
@@ -71,17 +83,18 @@ export function Navbar() {
             </Link>
           )}
 
+          {/* Auth section */}
           {isLoading ? (
-            <div className="w-16 h-7 rounded-md bg-muted animate-pulse" />
+            <div className="w-12 h-7 rounded-md bg-muted animate-pulse shrink-0" />
           ) : isAuthenticated ? (
-            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-              <Link href="/dashboard" className="min-w-0">
+            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+              <Link href="/dashboard" className="min-w-0 shrink overflow-hidden">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="font-mono text-primary px-2 max-w-[100px] sm:max-w-[160px] truncate"
+                  className="font-mono text-primary px-1.5 h-7 text-xs max-w-[90px] overflow-hidden"
                 >
-                  <span className="truncate">@{user!.username}</span>
+                  <span className="truncate block">@{user!.username}</span>
                 </Button>
               </Link>
               <Button
@@ -89,21 +102,21 @@ export function Navbar() {
                 size="sm"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="font-mono text-xs shrink-0"
+                className="font-mono text-xs shrink-0 px-2 h-7"
               >
-                {loggingOut ? "..." : "logout"}
+                {loggingOut ? "..." : "out"}
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1 shrink-0">
               <Link href="/login">
-                <Button variant="ghost" size="sm" className="font-mono text-xs px-2">
+                <Button variant="ghost" size="sm" className="font-mono text-xs px-2 h-7">
                   login
                 </Button>
               </Link>
               <Link href="/register">
-                <Button variant="outline" size="sm" className="font-mono text-xs px-2">
-                  register
+                <Button variant="outline" size="sm" className="font-mono text-xs px-2 h-7">
+                  join
                 </Button>
               </Link>
             </div>

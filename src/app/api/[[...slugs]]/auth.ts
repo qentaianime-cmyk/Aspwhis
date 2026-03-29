@@ -9,6 +9,20 @@ class AuthError extends Error {
   }
 }
 
+function parseArray(value: unknown): string[] {
+  if (!value) return []
+  if (Array.isArray(value)) return value as string[]
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export const authMiddleware = new Elysia({ name: "auth" })
   .error({ AuthError })
   .onError(({ code, set }) => {
@@ -41,30 +55,24 @@ export const authMiddleware = new Elysia({ name: "auth" })
     }
 
     const meta = await redis.hgetall<{
-      connected: string[]
-      participants?: string
+      connected: unknown
+      participants?: unknown
     }>(`meta:${roomId}`)
 
     if (!meta) {
       throw new AuthError("Room not found.")
     }
 
-    if (!meta.connected?.includes(xAuthToken)) {
+    const connected = parseArray(meta.connected)
+    const participants = parseArray(meta.participants)
+
+    if (!connected.includes(xAuthToken)) {
       throw new AuthError("Invalid room token.")
     }
 
-    let participants: string[] | null = null
-    if (meta.participants) {
-      try {
-        participants = JSON.parse(meta.participants)
-      } catch {
-        participants = []
-      }
-    }
-
-    if (participants === null || !participants.includes(username)) {
+    if (participants.length === 0 || !participants.includes(username)) {
       throw new AuthError("Not a participant in this room.")
     }
 
-    return { auth: { roomId, token: xAuthToken, connected: meta.connected, username } }
+    return { auth: { roomId, token: xAuthToken, connected, username } }
   })
