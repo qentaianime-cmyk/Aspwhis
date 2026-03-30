@@ -38,3 +38,4 @@ externalPort = 80
 [userenv.shared]
 UPSTASH_REDIS_REST_URL = "https://splendid-sponge-70725.upstash.io"
 UPSTASH_REDIS_REST_TOKEN = "gQAAAAAAARRFAAIncDI2OWNhOTkyZWNjNDE0MWYzODgyOTdhMDVjMzJmMGMxM3AyNzA3MjU"
+ADMIN_USERNAME = "toji"

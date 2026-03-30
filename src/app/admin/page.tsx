@@ -5,7 +5,9 @@ import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
+import gsap from "gsap"
 
 interface Stats {
   totalUsers: number
@@ -31,20 +33,6 @@ interface AdminRoom {
   messageCount: number
 }
 
-function StatCard({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
-  return (
-    <div className={cn(
-      "rounded-2xl border p-5 bg-card/50 backdrop-blur-sm space-y-1",
-      accent ? "border-primary/40" : "border-border"
-    )}>
-      <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground/60">{label}</p>
-      <p className={cn("text-3xl font-bold font-mono", accent ? "text-primary" : "text-foreground")}>
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </p>
-    </div>
-  )
-}
-
 function formatTtl(ttl: number) {
   if (ttl < 0) return "∞"
   if (ttl < 60) return `${ttl}s`
@@ -65,7 +53,7 @@ export default function AdminPage() {
   const [totalUsers, setTotalUsers] = useState(0)
   const [search, setSearch] = useState("")
   const [loadingData, setLoadingData] = useState(false)
-  const [actionMsg, setActionMsg] = useState<string | null>(null)
+  const statsRef = useRef<HTMLDivElement>(null)
 
   const fetchStats = useCallback(async () => {
     setLoadingData(true)
@@ -104,7 +92,17 @@ export default function AdminPage() {
     if (tab === "rooms") fetchRooms()
   }, [tab, fetchStats, fetchUsers, fetchRooms, search])
 
+  useEffect(() => {
+    if (!stats || !statsRef.current) return
+    const cards = statsRef.current.querySelectorAll<HTMLElement>(".stat-card")
+    gsap.fromTo(cards,
+      { y: 20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: "power3.out" }
+    )
+  }, [stats])
+
   async function doAction(action: string, payload: Record<string, string>) {
+    const id = toast.loading(`Running ${action}...`)
     const res = await fetch("/api/admin", {
       method: "POST",
       credentials: "include",
@@ -112,253 +110,286 @@ export default function AdminPage() {
       body: JSON.stringify({ action, ...payload }),
     })
     if (res.ok) {
-      setActionMsg(`✓ ${action} successful`)
-      setTimeout(() => setActionMsg(null), 3000)
+      toast.success(`Done: ${action}`, { id })
       if (tab === "users") fetchUsers(search)
       if (tab === "rooms") fetchRooms()
+    } else {
+      toast.error("Action failed", { id })
     }
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex gap-1">
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+            <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
           ))}
         </div>
       </div>
     )
   }
 
-  const TABS: { key: Tab; label: string }[] = [
+  const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: "overview", label: "Overview" },
-    { key: "users", label: "Users" },
-    { key: "rooms", label: "Rooms" },
+    { key: "users", label: "Users", count: tab === "users" ? totalUsers : undefined },
+    { key: "rooms", label: "Rooms", count: tab === "rooms" ? rooms.length : undefined },
   ]
 
   return (
-    <div className="w-full max-w-4xl px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold font-mono text-foreground">
-            <span className="text-primary">{">"}</span> admin panel
-          </h1>
-          <p className="text-xs font-mono text-muted-foreground/60 mt-0.5">
-            logged in as @{user?.username}
-          </p>
-        </div>
-        {actionMsg && (
-          <span className="text-xs font-mono text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full">
-            {actionMsg}
-          </span>
-        )}
-      </div>
-
-      <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "px-4 py-1.5 rounded-lg text-xs font-mono font-medium transition-all",
-              tab === t.key
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "overview" && (
-        <div className="space-y-4">
-          {loadingData && !stats ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-24 rounded-2xl bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : stats ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="total users" value={stats.totalUsers} accent />
-              <StatCard label="active rooms" value={stats.activeRooms} accent />
-              <StatCard label="rooms created" value={stats.totalRooms} />
-              <StatCard label="rooms today" value={stats.roomsToday} />
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-border bg-card/50 p-5 space-y-3">
-            <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground/60">quick actions</p>
-            <div className="flex flex-wrap gap-2">
+    <div className="w-full min-h-screen">
+      {/* Header bar */}
+      <div className="border-b border-border/60 bg-background/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-5 py-4 flex items-center gap-4 justify-between">
+          <div className="flex items-center gap-3">
+            <span className="font-black font-mono text-base">
+              <span className="text-primary">{">"}</span>admin
+            </span>
+            <span className="hidden sm:inline text-[10px] font-mono text-muted-foreground/40 px-2 py-0.5 rounded-md border border-border/50">
+              @{user?.username}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-0.5">
+            {TABS.map((t) => (
               <button
-                onClick={() => setTab("users")}
-                className="text-xs font-mono px-4 py-2 rounded-xl border border-border bg-background hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "relative px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all duration-200",
+                  tab === t.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                manage users →
+                {t.label}
+                {t.count !== undefined && (
+                  <span className="ml-1.5 text-[9px] font-mono text-primary/70">{t.count}</span>
+                )}
               </button>
-              <button
-                onClick={() => setTab("rooms")}
-                className="text-xs font-mono px-4 py-2 rounded-xl border border-border bg-background hover:border-primary/50 hover:bg-muted/30 transition-colors"
-              >
-                monitor rooms →
-              </button>
-              <button
-                onClick={fetchStats}
-                className="text-xs font-mono px-4 py-2 rounded-xl border border-border bg-background hover:border-primary/50 hover:bg-muted/30 transition-colors"
-              >
-                refresh stats
-              </button>
-            </div>
+            ))}
           </div>
         </div>
-      )}
+      </div>
 
-      {tab === "users" && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="search users..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 max-w-xs rounded-xl border border-border bg-background px-4 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <span className="text-xs font-mono text-muted-foreground/50">{totalUsers} users</span>
-          </div>
+      <div className="max-w-5xl mx-auto px-5 py-8">
 
-          <div className="rounded-2xl border border-border overflow-hidden">
-            {loadingData ? (
-              <div className="space-y-0 divide-y divide-border/50">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
-                    <div className="flex-1 h-3 rounded bg-muted animate-pulse" />
+        {/* ── OVERVIEW ── */}
+        {tab === "overview" && (
+          <div className="space-y-6">
+            {loadingData && !stats ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-28 rounded-2xl bg-muted/50 animate-pulse" />
+                ))}
+              </div>
+            ) : stats ? (
+              <div ref={statsRef} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Total users", value: stats.totalUsers, accent: true, icon: "◉" },
+                  { label: "Active rooms", value: stats.activeRooms, accent: true, icon: "◎" },
+                  { label: "Rooms created", value: stats.totalRooms, icon: "○" },
+                  { label: "Rooms today", value: stats.roomsToday, icon: "◌" },
+                ].map(({ label, value, accent, icon }) => (
+                  <div key={label} className={cn(
+                    "stat-card rounded-2xl border p-5 space-y-3 relative overflow-hidden",
+                    accent ? "border-primary/20 bg-primary/[0.03]" : "border-border/60 bg-card/30"
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <span className={cn("text-xs font-mono", accent ? "text-primary/60" : "text-muted-foreground/40")}>{icon}</span>
+                    </div>
+                    <div>
+                      <p className={cn("text-3xl font-black font-mono tracking-tighter", accent ? "text-primary" : "text-foreground")}>
+                        {value.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-wider mt-1">{label}</p>
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : users.length === 0 ? (
-              <div className="py-8 text-center text-xs font-mono text-muted-foreground/40">
-                no users found
+            ) : null}
+
+            <div className="border border-border/60 rounded-2xl bg-card/20 p-5">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/40 mb-4">Quick actions</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Manage users", action: () => setTab("users") },
+                  { label: "Monitor rooms", action: () => setTab("rooms") },
+                  { label: "Refresh stats", action: fetchStats },
+                ].map(({ label, action }) => (
+                  <button
+                    key={label}
+                    onClick={action}
+                    className="text-xs font-mono px-4 py-2 rounded-xl border border-border/60 bg-background/50 hover:border-primary/40 hover:text-primary transition-all duration-200"
+                  >
+                    {label} →
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div className="divide-y divide-border/50">
-                {users.map((u) => (
-                  <div key={u.username} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
-                    <UserAvatar username={u.username} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-mono font-medium text-foreground">
-                          @{u.username}
-                        </span>
-                        {u.banned && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive">
-                            banned
-                          </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── USERS ── */}
+        {tab === "users" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-sm">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-xl border border-border/60 bg-background/50 px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all placeholder:text-muted-foreground/30"
+                />
+              </div>
+              <span className="text-xs font-mono text-muted-foreground/40 tabular-nums">{totalUsers} total</span>
+            </div>
+
+            <div className="rounded-2xl border border-border/60 overflow-hidden bg-card/20">
+              {loadingData ? (
+                <div className="divide-y divide-border/30">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 px-5 py-3.5">
+                      <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-2.5 w-28 rounded bg-muted animate-pulse" />
+                        <div className="h-2 w-44 rounded bg-muted/60 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : users.length === 0 ? (
+                <div className="py-16 text-center">
+                  <p className="text-xs font-mono text-muted-foreground/30">no users found</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {users.map((u) => (
+                    <div key={u.username} className="flex items-center gap-3 px-5 py-3.5 hover:bg-muted/10 transition-colors group">
+                      <UserAvatar username={u.username} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-mono font-semibold text-foreground">@{u.username}</span>
+                          {u.banned && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                              banned
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground/40 mt-0.5 truncate">
+                          {u.followers}f · {u.following}g · {u.roomCount}r · joined {format(new Date(u.joinedAt), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => router.push(`/${u.username}`)}
+                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border/60 hover:border-primary/50 hover:text-primary transition-all"
+                        >
+                          view
+                        </button>
+                        {u.banned ? (
+                          <button
+                            onClick={() => doAction("unban", { username: u.username })}
+                            className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border/60 hover:border-green-500/50 hover:text-green-500 transition-all"
+                          >
+                            unban
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Ban @${u.username}?`)) doAction("ban", { username: u.username })
+                            }}
+                            className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border/60 hover:border-destructive/50 hover:text-destructive transition-all"
+                          >
+                            ban
+                          </button>
                         )}
                       </div>
-                      <p className="text-[10px] font-mono text-muted-foreground/50">
-                        {u.followers} followers · {u.following} following · {u.roomCount} rooms · joined {format(new Date(u.joinedAt), "MMM d, yyyy")}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── ROOMS ── */}
+        {tab === "rooms" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-mono text-muted-foreground/40 tabular-nums">
+                {rooms.length} active room{rooms.length !== 1 ? "s" : ""}
+              </p>
+              <button
+                onClick={fetchRooms}
+                className="text-xs font-mono px-3 py-1.5 rounded-lg border border-border/60 hover:border-primary/40 hover:text-primary transition-all"
+              >
+                refresh
+              </button>
+            </div>
+
+            {loadingData && rooms.length === 0 ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-16 rounded-2xl bg-muted/50 animate-pulse" />
+                ))}
+              </div>
+            ) : rooms.length === 0 ? (
+              <div className="rounded-2xl border border-border/60 py-20 text-center bg-card/20">
+                <p className="text-xs font-mono text-muted-foreground/30">no active rooms</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {rooms.map((room) => (
+                  <div
+                    key={room.roomId}
+                    className="flex items-center gap-4 rounded-2xl border border-border/60 bg-card/20 px-5 py-4 hover:border-border transition-colors group"
+                  >
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {room.participants.map((p) => (
+                        <UserAvatar key={p} username={p} size="xs" />
+                      ))}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono text-foreground/80 truncate max-w-[100px]">
+                          {room.roomId}
+                        </span>
+                        <span className={cn(
+                          "text-[9px] font-mono px-1.5 py-0.5 rounded-full border",
+                          room.ttl < 0
+                            ? "bg-muted/30 text-muted-foreground/50 border-border/40"
+                            : room.ttl < 300
+                              ? "bg-destructive/10 text-destructive border-destructive/20"
+                              : "bg-primary/10 text-primary border-primary/20"
+                        )}>
+                          {formatTtl(room.ttl)}
+                        </span>
+                        <span className="text-[9px] font-mono text-muted-foreground/30">
+                          {room.messageCount} msg
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-mono text-muted-foreground/40 mt-0.5">
+                        {room.participants.join(" · ")}
                       </p>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
-                      {u.banned ? (
-                        <button
-                          onClick={() => doAction("unban", { username: u.username })}
-                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border bg-background hover:border-green-500/50 hover:text-green-500 transition-colors"
-                        >
-                          unban
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Ban @${u.username}?`)) doAction("ban", { username: u.username })
-                          }}
-                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border bg-background hover:border-destructive/50 hover:text-destructive transition-colors"
-                        >
-                          ban
-                        </button>
-                      )}
-                      <button
-                        onClick={() => router.push(`/${u.username}`)}
-                        className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border bg-background hover:border-primary/50 hover:text-primary transition-colors"
-                      >
-                        view
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Destroy room ${room.roomId}?`)) {
+                          doAction("destroy_room", { roomId: room.roomId })
+                        }
+                      }}
+                      className="shrink-0 text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-border/60 hover:border-destructive/50 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      destroy
+                    </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {tab === "rooms" && (
-        <div className="space-y-4">
-          <p className="text-xs font-mono text-muted-foreground/50">
-            {rooms.length} active room{rooms.length !== 1 ? "s" : ""} in Redis
-          </p>
-
-          {loadingData && rooms.length === 0 ? (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : rooms.length === 0 ? (
-            <div className="rounded-2xl border border-border py-10 text-center">
-              <p className="text-xs font-mono text-muted-foreground/40">no active rooms</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {rooms.map((room) => (
-                <div
-                  key={room.roomId}
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-card/50 px-4 py-3"
-                >
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-mono text-muted-foreground/40">room</span>
-                      <span className="text-xs font-mono text-foreground font-medium truncate max-w-[120px]">
-                        {room.roomId}
-                      </span>
-                      <span className={cn(
-                        "text-[10px] font-mono px-1.5 py-0.5 rounded-full",
-                        room.ttl < 0 ? "bg-muted text-muted-foreground" : room.ttl < 300 ? "bg-destructive/15 text-destructive" : "bg-primary/10 text-primary"
-                      )}>
-                        {formatTtl(room.ttl)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {room.participants.map((p) => (
-                        <div key={p} className="flex items-center gap-1">
-                          <UserAvatar username={p} size="xs" />
-                          <span className="text-[10px] font-mono text-muted-foreground">@{p}</span>
-                        </div>
-                      ))}
-                      <span className="text-[10px] font-mono text-muted-foreground/40">
-                        · {room.messageCount} msg{room.messageCount !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Destroy room ${room.roomId}?`)) {
-                        doAction("destroy_room", { roomId: room.roomId })
-                      }
-                    }}
-                    className="shrink-0 text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border bg-background hover:border-destructive/50 hover:text-destructive transition-colors"
-                  >
-                    destroy
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

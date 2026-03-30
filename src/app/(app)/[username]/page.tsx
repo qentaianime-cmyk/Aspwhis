@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useRef, useState, useTransition } from "react"
+import { toast } from "sonner"
 
 interface ProfileData {
   username: string
@@ -35,13 +36,21 @@ function ProfileAvatar({ username, isOwnProfile }: { username: string; isOwnProf
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 2 * 1024 * 1024) { alert("Image too large (max 2 MB)"); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Image too large — max 2 MB"); return }
     setUploading(true)
+    const toastId = toast.loading("Uploading avatar...")
     try {
       const fd = new FormData()
       fd.append("file", file)
       const res = await fetch("/api/avatar", { method: "POST", body: fd, credentials: "include" })
-      if (res.ok) setKey((k) => k + 1)
+      if (res.ok) {
+        setKey((k) => k + 1)
+        toast.success("Avatar updated", { id: toastId })
+      } else {
+        toast.error("Upload failed — try again", { id: toastId })
+      }
+    } catch {
+      toast.error("Upload failed — network error", { id: toastId })
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
