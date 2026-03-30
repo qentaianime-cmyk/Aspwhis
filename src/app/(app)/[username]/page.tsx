@@ -178,9 +178,11 @@ export default function ProfilePage() {
     )
   }
 
-  const canShowStartRoom =
-    isAuthenticated && !profile.isOwnProfile && (profile.isFollowing || profile.isFollowedBy)
-
+const canShowStartRoom =
+  isAuthenticated &&
+  profile &&
+  !profile.isOwnProfile &&
+  (profile.isFollowing || profile.isFollowedBy);
   return (
     <div className="w-full max-w-sm space-y-4 px-4 py-8">
       {(isStartingRoom || isNavigating) && (
