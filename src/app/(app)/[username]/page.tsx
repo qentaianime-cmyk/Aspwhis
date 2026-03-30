@@ -1,11 +1,12 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { UserAvatar } from "@/components/custom/user-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 
 interface ProfileData {
   username: string
@@ -26,25 +27,59 @@ async function fetchProfile(username: string): Promise<ProfileData | null> {
   return res.json()
 }
 
-function InitialsAvatar({ username }: { username: string }) {
-  const initials = username.slice(0, 2).toUpperCase()
-  const colors = [
-    "bg-red-500",
-    "bg-blue-500",
-    "bg-green-500",
-    "bg-purple-500",
-    "bg-orange-500",
-    "bg-pink-500",
-    "bg-teal-500",
-    "bg-yellow-500",
-  ]
-  const color = colors[username.charCodeAt(0) % colors.length]
+function ProfileAvatar({ username, isOwnProfile }: { username: string; isOwnProfile: boolean }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [key, setKey] = useState(0)
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { alert("Image too large (max 2 MB)"); return }
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/avatar", { method: "POST", body: fd, credentials: "include" })
+      if (res.ok) setKey((k) => k + 1)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
 
   return (
-    <div
-      className={`${color} w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl font-mono`}
-    >
-      {initials}
+    <div className="relative group shrink-0">
+      <UserAvatar key={key} username={username} size="xl" />
+      {isOwnProfile && (
+        <>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed"
+            title="Change avatar"
+          >
+            {uploading ? (
+              <svg className="w-4 h-4 text-white animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" strokeDasharray="31.416" strokeDashoffset="10" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            )}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleUpload}
+          />
+        </>
+      )}
     </div>
   )
 }
@@ -147,13 +182,13 @@ export default function ProfilePage() {
 
       <div className="border border-border rounded-2xl bg-card/50 p-6 backdrop-blur-md space-y-5">
         <div className="flex items-center gap-4">
-          <InitialsAvatar username={profile.username} />
+          <ProfileAvatar username={profile.username} isOwnProfile={profile.isOwnProfile} />
           <div>
             <h1 className="text-xl font-bold font-mono text-foreground">
               @{profile.username}
             </h1>
             {profile.isOwnProfile && (
-              <p className="text-xs text-muted-foreground font-mono">this is you</p>
+              <p className="text-xs text-muted-foreground font-mono">this is you · hover avatar to change</p>
             )}
             {profile.isMutual && !profile.isOwnProfile && (
               <p className="text-xs text-primary font-mono">mutual follow</p>

@@ -4,7 +4,13 @@ import { redis } from "./lib/redis"
 import { verifyTokenEdge } from "./lib/session-edge"
 
 const AUTH_PROTECTED = ["/dashboard"]
+const ADMIN_PATTERN = /^\/admin(\/|$)/
 const ROOM_PATTERN = /^\/room\/([^/]+)$/
+
+const ADMIN_USERNAMES = (process.env.ADMIN_USERNAME ?? "")
+  .split(",")
+  .map((u) => u.trim().toLowerCase())
+  .filter(Boolean)
 
 async function getSessionUsername(req: NextRequest): Promise<string | null> {
   const signedToken = req.cookies.get("authToken")?.value
@@ -50,7 +56,21 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   const isAuthProtected = AUTH_PROTECTED.some((p) => pathname.startsWith(p))
+  const isAdminRoute = ADMIN_PATTERN.test(pathname)
   const roomMatch = pathname.match(ROOM_PATTERN)
+
+  if (isAdminRoute) {
+    const username = await getSessionUsername(req)
+    if (!username) {
+      const loginUrl = new URL("/login", req.url)
+      loginUrl.searchParams.set("next", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    if (ADMIN_USERNAMES.length > 0 && !ADMIN_USERNAMES.includes(username)) {
+      return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
+    }
+    return NextResponse.next()
+  }
 
   if (isAuthProtected) {
     const username = await getSessionUsername(req)
@@ -128,5 +148,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/room/:path*"],
+  matcher: ["/dashboard/:path*", "/room/:path*", "/admin/:path*", "/admin"],
 }

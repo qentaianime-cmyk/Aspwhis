@@ -3,6 +3,7 @@ import { redis } from "@/lib/redis"
 import { verifyToken } from "@/lib/session"
 import User from "@/models/User"
 import { NextRequest, NextResponse } from "next/server"
+import { pushNotification } from "@/app/api/notifications/route"
 
 async function getViewerUsername(req: NextRequest): Promise<string | null> {
   const signedToken = req.cookies.get("authToken")?.value
@@ -57,6 +58,12 @@ export async function POST(req: NextRequest) {
     await Promise.all([
       User.updateOne({ username: targetUsername }, { $addToSet: { followers: viewerUsername } }),
       User.updateOne({ username: viewerUsername }, { $addToSet: { following: targetUsername } }),
+      pushNotification(targetUsername, {
+        type: "follow",
+        from: viewerUsername,
+        message: `@${viewerUsername} followed you`,
+        timestamp: Date.now(),
+      }),
     ])
 
     return NextResponse.json({ success: true }, { status: 200 })

@@ -21,16 +21,20 @@ A private, self-destructing realtime chat platform built with Next.js 16, MongoD
 ## Key Files
 - `src/app/layout.tsx` — Root layout with Google Fonts registry
 - `src/app/(app)/layout.tsx` — App shell with Navbar
-- `src/app/(app)/page.tsx` — Lobby page (create room)
+- `src/app/(app)/page.tsx` — Animated landing page (orbs, scroll-reveal, feature cards, CTA)
 - `src/app/(app)/login/page.tsx` — Login form
 - `src/app/(app)/register/page.tsx` — Registration form
 - `src/app/(app)/dashboard/page.tsx` — User dashboard (protected, with social section)
-- `src/app/(app)/[username]/page.tsx` — Public profile page (follow/unfollow, start room)
+- `src/app/(app)/[username]/page.tsx` — Profile page (follow/unfollow, start room, avatar upload)
 - `src/app/(app)/search/page.tsx` — User search with debounced input
-- `src/app/room/[id]/page.tsx` — Chat room page
+- `src/app/room/[id]/page.tsx` — Chat room page (WhatsApp-style UI)
+- `src/app/admin/page.tsx` — Admin panel (stats, user management, room monitor)
 - `src/app/api/[[...slugs]]/route.ts` — Elysia backend (rooms, messages)
 - `src/app/api/auth/*/route.ts` — Auth REST endpoints (register/login/logout/me)
-- `src/middleware.ts` — Next.js middleware: auth guard + room membership proxy
+- `src/app/api/admin/route.ts` — Admin REST API (ban/unban/destroy, protected by ADMIN_USERNAME)
+- `src/app/api/avatar/route.ts` — Avatar upload/serve (Redis-backed base64, 2MB limit)
+- `src/app/api/notifications/route.ts` — Notification system (Redis LPUSH, max 50)
+- `src/middleware.ts` — Next.js middleware: auth guard + room membership proxy + admin guard
 - `src/lib/db.ts` — Mongoose singleton connection
 - `src/lib/session.ts` — HMAC-signed token helpers (Node.js crypto, for API routes)
 - `src/lib/session-edge.ts` — HMAC-signed token helpers (Web Crypto API, for Edge middleware)
@@ -40,12 +44,16 @@ A private, self-destructing realtime chat platform built with Next.js 16, MongoD
 - `src/hooks/use-username.ts` — Username hook (wraps useAuth)
 - `src/models/User.ts` — Mongoose User schema
 - `src/models/Room.ts` — Mongoose Room schema
+- `src/components/custom/user-avatar.tsx` — Avatar component (xs/sm/md/lg/xl sizes, image+initials fallback)
+- `src/components/custom/notification-bell.tsx` — Notification bell (badge, sliding panel, mark-read)
+- `src/components/custom/navbar.tsx` — Navbar with avatar, notification bell
 
 ## Environment Variables (Required)
 - `UPSTASH_REDIS_REST_URL` — Upstash Redis REST URL
 - `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis REST token
 - `MONGODB_URI` — MongoDB connection string
 - `SESSION_SECRET` — Min 32-char secret for HMAC session signing
+- `ADMIN_USERNAME` — Comma-separated admin usernames (e.g. `alice,bob`) for admin panel access
 
 ## Replit Migration Notes
 1. **Port/Host**: Dev and start scripts updated to `-p 5000 -H 0.0.0.0`

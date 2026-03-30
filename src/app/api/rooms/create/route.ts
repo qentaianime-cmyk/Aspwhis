@@ -5,6 +5,7 @@ import Room from "@/models/Room"
 import User from "@/models/User"
 import { nanoid } from "nanoid"
 import { NextRequest, NextResponse } from "next/server"
+import { pushNotification } from "@/app/api/notifications/route"
 
 async function getViewerUsername(req: NextRequest): Promise<string | null> {
   const signedToken = req.cookies.get("authToken")?.value
@@ -95,6 +96,14 @@ export async function POST(req: NextRequest) {
         isPrivate: true,
       }),
     ])
+
+    await pushNotification(targetUsername, {
+      type: "room_invite",
+      from: viewerUsername,
+      message: `@${viewerUsername} started a private room with you`,
+      timestamp: Date.now(),
+      extra: { roomId },
+    })
 
     return NextResponse.json({ roomId })
   } catch (err) {
