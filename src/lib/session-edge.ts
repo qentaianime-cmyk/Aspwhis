@@ -38,7 +38,12 @@ export async function verifyTokenEdge(token: string): Promise<string | null> {
     const sigBytes = hexToBytes(sigHex)
     const enc = new TextEncoder()
 
-    const valid = await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(uuid))
+    const valid = await crypto.subtle.verify(
+  "HMAC",
+  key,
+  sigBytes.buffer,
+  enc.encode(uuid)
+)
     return valid ? uuid : null
   } catch {
     return null
