@@ -1,6 +1,5 @@
 const DEV_SECRET = "dev-only-secret-do-not-use-in-prod-32chars"
 
-// ✅ Ensure production safety
 if (
   process.env.NODE_ENV === "production" &&
   (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32)
@@ -10,7 +9,6 @@ if (
   )
 }
 
-// ✅ Convert hex → Uint8Array
 function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2)
   for (let i = 0; i < hex.length; i += 2) {
@@ -19,7 +17,6 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes
 }
 
-// ✅ Create HMAC key (Edge-safe)
 async function getKey(): Promise<CryptoKey> {
   const secret = process.env.SESSION_SECRET ?? DEV_SECRET
   const enc = new TextEncoder()
@@ -33,7 +30,6 @@ async function getKey(): Promise<CryptoKey> {
   )
 }
 
-// ✅ MAIN VERIFY FUNCTION (FULL FIXED)
 export async function verifyTokenEdge(
   token: string
 ): Promise<string | null> {
@@ -43,25 +39,18 @@ export async function verifyTokenEdge(
   const uuid = token.slice(0, dot)
   const sigHex = token.slice(dot + 1)
 
-  // basic validation
   if (!uuid || !sigHex || sigHex.length !== 64) return null
 
   try {
     const key = await getKey()
-
     const sigBytes = hexToBytes(sigHex)
     const enc = new TextEncoder()
 
-    // ✅ CRITICAL FIX (Railway + TS safe)
-    const signature =
-      sigBytes instanceof Uint8Array
-        ? sigBytes.buffer
-        : new Uint8Array(sigBytes).buffer
-
+    // ✅ FINAL FIX (NO BUFFER, NO ERROR)
     const valid = await crypto.subtle.verify(
       "HMAC",
       key,
-      signature,
+      sigBytes, // ✅ pass Uint8Array directly
       enc.encode(uuid)
     )
 
