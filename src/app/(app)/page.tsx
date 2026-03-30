@@ -89,24 +89,21 @@ function LandingPage() {
     initLenis()
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: "power4.out" } })
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } })
 
-      tl.fromTo(taglineRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, 0.1)
-        .fromTo(titleRef.current, { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 1 }, 0.25)
-        .fromTo(subtitleRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, 0.55)
-        .fromTo(ctaRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7 }, 0.75)
+      tl.to(taglineRef.current, { opacity: 1, duration: 0.7 }, 0.05)
+        .to(titleRef.current, { opacity: 1, duration: 0.8 }, 0.2)
+        .to(subtitleRef.current, { opacity: 1, duration: 0.7 }, 0.45)
+        .to(ctaRef.current, { opacity: 1, duration: 0.6 }, 0.65)
 
       gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((el) => {
-        gsap.fromTo(el,
-          { y: 50, opacity: 0 },
-          {
-            y: 0, opacity: 1, duration: 1, ease: "power3.out",
-            scrollTrigger: { trigger: el, start: "top 88%", once: true }
-          }
-        )
+        gsap.to(el, {
+          opacity: 1, duration: 0.9, ease: "power2.out",
+          scrollTrigger: { trigger: el, start: "top 88%", once: true }
+        })
       })
 
-      gsap.utils.toArray<HTMLElement>("[data-reveal-line]").forEach((el, i) => {
+      gsap.utils.toArray<HTMLElement>("[data-reveal-line]").forEach((el) => {
         gsap.fromTo(el,
           { scaleX: 0 },
           {
@@ -144,7 +141,7 @@ function LandingPage() {
       )}
 
       {/* ── HERO ── */}
-      <section className="relative min-h-[100svh] flex flex-col justify-end px-6 sm:px-12 pb-16 pt-28 overflow-hidden">
+      <section className="relative min-h-[100svh] flex flex-col justify-center px-6 sm:px-12 pb-16 pt-20 sm:pt-24 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_60%_-10%,oklch(var(--primary)/0.06),transparent)] pointer-events-none" />
         <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-primary/[0.04] blur-[100px] pointer-events-none" />
 
@@ -222,7 +219,7 @@ function LandingPage() {
       <section className="py-24 sm:py-36 px-6 sm:px-12">
         <div className="max-w-6xl mx-auto space-y-24 sm:space-y-32">
 
-          <div data-reveal className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 lg:gap-20 items-start">
+          <div data-reveal style={{ opacity: 0 }} className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 lg:gap-20 items-start">
             <div>
               <p className="text-[10px] font-mono tracking-[0.3em] text-primary mb-5 uppercase">01 — Privacy</p>
               <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
@@ -240,7 +237,7 @@ function LandingPage() {
 
           <div data-reveal-line className="h-px bg-border origin-left" />
 
-          <div data-reveal className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 lg:gap-20 items-start">
+          <div data-reveal style={{ opacity: 0 }} className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 lg:gap-20 items-start">
             <div>
               <p className="text-[10px] font-mono tracking-[0.3em] text-primary mb-5 uppercase">02 — Ephemerality</p>
               <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
@@ -258,7 +255,7 @@ function LandingPage() {
 
           <div data-reveal-line className="h-px bg-border origin-left" />
 
-          <div data-reveal className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 lg:gap-20 items-start">
+          <div data-reveal style={{ opacity: 0 }} className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 lg:gap-20 items-start">
             <div>
               <p className="text-[10px] font-mono tracking-[0.3em] text-primary mb-5 uppercase">03 — Social layer</p>
               <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
@@ -276,7 +273,7 @@ function LandingPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section data-reveal className="relative py-28 sm:py-40 px-6 sm:px-12 overflow-hidden">
+      <section data-reveal style={{ opacity: 0 }} className="relative py-28 sm:py-40 px-6 sm:px-12 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_70%_at_50%_50%,oklch(var(--primary)/0.05),transparent)] pointer-events-none" />
         <div className="relative z-10 max-w-4xl mx-auto text-center space-y-8">
           <h2

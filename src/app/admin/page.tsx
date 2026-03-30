@@ -280,17 +280,17 @@ export default function AdminPage() {
                           {u.followers}f · {u.following}g · {u.roomCount}r · joined {format(new Date(u.joinedAt), "MMM d, yyyy")}
                         </p>
                       </div>
-                      <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1.5 shrink-0">
                         <button
                           onClick={() => router.push(`/${u.username}`)}
-                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border/60 hover:border-primary/50 hover:text-primary transition-all"
+                          className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-border/60 hover:border-primary/50 hover:text-primary transition-all"
                         >
                           view
                         </button>
                         {u.banned ? (
                           <button
                             onClick={() => doAction("unban", { username: u.username })}
-                            className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border/60 hover:border-green-500/50 hover:text-green-500 transition-all"
+                            className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-green-500/30 text-green-500/70 hover:border-green-500/60 hover:text-green-500 transition-all"
                           >
                             unban
                           </button>
@@ -299,7 +299,7 @@ export default function AdminPage() {
                             onClick={() => {
                               if (confirm(`Ban @${u.username}?`)) doAction("ban", { username: u.username })
                             }}
-                            className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-border/60 hover:border-destructive/50 hover:text-destructive transition-all"
+                            className="text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive/60 hover:border-destructive/60 hover:text-destructive transition-all"
                           >
                             ban
                           </button>
@@ -379,7 +379,7 @@ export default function AdminPage() {
                           doAction("destroy_room", { roomId: room.roomId })
                         }
                       }}
-                      className="shrink-0 text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-border/60 hover:border-destructive/50 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                      className="shrink-0 text-[10px] font-mono px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive/60 hover:border-destructive/60 hover:text-destructive transition-all"
                     >
                       destroy
                     </button>

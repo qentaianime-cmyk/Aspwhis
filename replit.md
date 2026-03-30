@@ -53,17 +53,28 @@ A private, self-destructing realtime chat platform built with Next.js 16, MongoD
 - `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis REST token
 - `MONGODB_URI` — MongoDB connection string
 - `SESSION_SECRET` — Min 32-char secret for HMAC session signing
-- `ADMIN_USERNAME` — Comma-separated admin usernames (e.g. `alice,bob`) for admin panel access
+- `ADMIN_USERNAME` — Set to `toji` (admin account: username=toji, password=toji@aspzap2024!)
 
-## Replit Migration Notes
-1. **Port/Host**: Dev and start scripts updated to `-p 5000 -H 0.0.0.0`
-2. **PostCSS/Tailwind v4 fix**: Added `@source "../../src"` in `globals.css` and `base: "./src"` in `postcss.config.mjs` — do NOT remove, prevents 100%+ CPU spin
+## Admin Account
+- Username: `toji` | Password: `toji@aspzap2024!`
+- Access admin panel at `/admin` (restricted to `ADMIN_USERNAME` only)
+
+## Deployment
+- **Railway**: Uses `nixpacks.toml` — build with `bun install && bun run build`, start with `bun run start`. PORT is injected automatically.
+- **Vercel**: Uses `vercel.json` — auto-detected as Next.js app. Install command: `bun install`, build: `bun run build`.
+- **Start script**: `bun run start -p ${PORT:-3000} -H 0.0.0.0` — respects `PORT` env var from platform.
+
+## Replit Dev Notes
+1. **Port/Host**: Dev runs on `-p 5000 -H 0.0.0.0`; start uses `${PORT:-3000}` for deployment
+2. **PostCSS/Tailwind v4 fix**: `@source "../../src"` in `globals.css` and `base: "./src"` in `postcss.config.mjs` — do NOT remove
 3. **React Compiler**: Removed `reactCompiler: true` from `next.config.ts`
 4. **Workflow**: Configured to run `bun run dev` on port 5000
+5. **GSAP + Lenis**: Hero elements start at `opacity-0` in HTML; GSAP fades them to `opacity: 1` on load
+6. **data-reveal**: Feature sections use `style={{ opacity: 0 }}` with ScrollTrigger GSAP animations
 
 ## Running
 ```bash
 bun run dev    # Development (port 5000)
-bun run build  # Build
-bun run start  # Production (port 5000)
+bun run build  # Build for production
+bun run start  # Production (PORT env or 3000)
 ```

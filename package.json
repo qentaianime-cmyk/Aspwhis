@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "bun run --bun next dev -p 5000 -H 0.0.0.0",
     "build": "bun run --bun next build",
-    "start": "bun run --bun next start -p 5000 -H 0.0.0.0",
+    "start": "bun run --bun next start -p ${PORT:-3000} -H 0.0.0.0",
     "lint": "eslint"
   },
   "dependencies": {
