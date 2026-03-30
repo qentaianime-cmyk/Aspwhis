@@ -290,7 +290,7 @@ function MessageBubble({
 
         return (
           <div
-            key={msg.id ?? (msg as PendingMessage).localId}
+            key={"id" in msg ? msg.id : msg.localId}
             className={cn(
               "w-full group/msg",
               group.isMine ? "flex flex-col items-end" : "flex flex-col items-start"
