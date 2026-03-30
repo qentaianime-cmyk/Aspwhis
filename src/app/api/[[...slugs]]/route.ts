@@ -40,10 +40,14 @@ const rooms = new Elysia({ prefix: "/room" })
     async ({ auth }) => {
       await realtime.channel(auth.roomId).emit("chat.destroy", { isDestroyed: true })
 
+      const imgIds = await redis.smembers<string[]>(`room-img-index:${auth.roomId}`)
+
       await Promise.allSettled([
         redis.del(auth.roomId),
         redis.del(`meta:${auth.roomId}`),
         redis.del(`messages:${auth.roomId}`),
+        redis.del(`room-img-index:${auth.roomId}`),
+        ...imgIds.map((id) => redis.del(`room-img:${auth.roomId}:${id}`)),
         (async () => {
           try {
             await connectDB()
@@ -62,11 +66,10 @@ const messages = new Elysia({ prefix: "/messages" })
   .post(
     "/",
     async ({ body, auth, set }) => {
-      const { text } = body
+      const { text, imageId } = body
       const { roomId, username } = auth
 
       const roomExists = await redis.exists(`meta:${roomId}`)
-
       if (!roomExists) {
         set.status = 400
         return { error: "Room does not exist" }
@@ -78,13 +81,13 @@ const messages = new Elysia({ prefix: "/messages" })
         text,
         timestamp: Date.now(),
         roomId,
+        imageId: imageId ?? undefined,
       }
 
       await redis.rpush(`messages:${roomId}`, { ...message, token: auth.token })
       await realtime.channel(roomId).emit("chat.message", message)
 
       const remaining = await redis.ttl(`meta:${roomId}`)
-
       if (remaining > 0) {
         await Promise.all([
           redis.expire(`messages:${roomId}`, remaining),
@@ -97,6 +100,7 @@ const messages = new Elysia({ prefix: "/messages" })
       query: z.object({ roomId: z.string() }),
       body: z.object({
         text: z.string().max(1000),
+        imageId: z.string().optional(),
       }),
     }
   )
@@ -104,7 +108,6 @@ const messages = new Elysia({ prefix: "/messages" })
     "/",
     async ({ auth }) => {
       const messages = await redis.lrange<Message>(`messages:${auth.roomId}`, 0, -1)
-
       return {
         messages: messages.map((m) => ({
           ...m,
