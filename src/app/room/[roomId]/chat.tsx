@@ -204,7 +204,7 @@ function groupMessages(
   return groups
 }
 
-function ChatImage({ roomId, imageId, isMine }: { roomId: string; imageId: string; isMine: boolean }) {
+function ChatImage({ roomId, imageId }: { roomId: string; imageId: string; isMine: boolean }) {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
 
@@ -215,18 +215,49 @@ function ChatImage({ roomId, imageId, isMine }: { roomId: string; imageId: strin
       <img
         src={`/api/image?roomId=${roomId}&imgId=${imageId}`}
         alt="shared image"
+        draggable={false}
         className={cn(
-          "w-full max-w-[280px] rounded-xl object-cover cursor-pointer transition-opacity",
-          loaded ? "opacity-100" : "opacity-0 absolute"
+          "w-full max-w-[280px] rounded-xl object-cover transition-opacity select-none",
+          loaded ? "opacity-100 cursor-zoom-in" : "opacity-0 absolute"
         )}
-        style={{ maxHeight: "320px" }}
+        style={{
+          maxHeight: "320px",
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          pointerEvents: loaded ? "auto" : "none",
+        }}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
+        onContextMenu={(e) => e.preventDefault()}
         onClick={() => {
-          window.open(`/api/image?roomId=${roomId}&imgId=${imageId}`, "_blank")
+          const w = window.open("", "_blank")
+          if (w) {
+            w.document.write(
+              `<html><head><title>image</title><style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="/api/image?roomId=${roomId}&imgId=${imageId}" /></body></html>`
+            )
+          }
         }}
       />
     </div>
+  )
+}
+
+const TWO_MINUTES_MS = 2 * 60 * 1000
+
+function DeleteButton({ onDelete }: { onDelete: () => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onDelete() }}
+      title="Delete message"
+      className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all active:scale-95"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+      </svg>
+    </button>
   )
 }
 
@@ -234,10 +265,12 @@ function MessageBubble({
   group,
   roomId,
   onRetry,
+  onDelete,
 }: {
   group: MessageGroup
   roomId: string
   onRetry?: (msg: PendingMessage) => void
+  onDelete?: (messageId: string) => void
 }) {
   const lastMsg = group.messages[group.messages.length - 1]
   const lastTimestamp = (lastMsg as MessageType).timestamp
@@ -253,49 +286,70 @@ function MessageBubble({
         const serverMsg = !isPending ? (msg as MessageType) : null
         const urls = extractUrls(msg.text)
         const hasOnlyUrl = msg.text.trim().match(/^https?:\/\/\S+$/)
+        const canDelete = group.isMine && !isPending && serverMsg && Date.now() - serverMsg.timestamp <= TWO_MINUTES_MS
 
         return (
-          <div key={msg.id ?? (msg as PendingMessage).localId} className={cn("w-full", group.isMine ? "flex flex-col items-end" : "flex flex-col items-start")}>
+          <div
+            key={msg.id ?? (msg as PendingMessage).localId}
+            className={cn(
+              "w-full group/msg",
+              group.isMine ? "flex flex-col items-end" : "flex flex-col items-start"
+            )}
+          >
             {serverMsg?.imageId && (
-              <ChatImage roomId={roomId} imageId={serverMsg.imageId} isMine={group.isMine} />
+              <div className={cn("flex items-end gap-1", group.isMine ? "flex-row-reverse" : "flex-row")}>
+                <ChatImage roomId={roomId} imageId={serverMsg.imageId} isMine={group.isMine} />
+                {canDelete && onDelete && (
+                  <div className="opacity-30 hover:opacity-100 active:opacity-100 transition-opacity mb-1">
+                    <DeleteButton onDelete={() => onDelete(serverMsg.id)} />
+                  </div>
+                )}
+              </div>
             )}
             {pending?.imageId && (
               <div className="mt-1 rounded-xl bg-muted/50 animate-pulse min-h-[80px] w-[200px]" />
             )}
 
             {msg.text && (
-              <div
-                className={cn(
-                  "max-w-[75vw] sm:max-w-[60%] px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap",
-                  group.isMine
-                    ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
-                    : "bg-muted text-foreground rounded-2xl rounded-bl-sm",
-                  i > 0 && group.isMine && "rounded-tr-lg",
-                  i > 0 && !group.isMine && "rounded-tl-lg",
-                  isPending && "opacity-80"
-                )}
-              >
-                {linkify(msg.text)}
-                {isPending && (
-                  <span className="inline-flex items-center gap-1 ml-1 align-middle">
-                    {pending!.status === "sending" ? (
-                      <svg className="w-3 h-3 opacity-60 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" strokeDasharray="31.416" strokeDashoffset="10" strokeLinecap="round" />
-                      </svg>
-                    ) : (
-                      <button
-                        onClick={() => onRetry?.(pending!)}
-                        title="Tap to retry"
-                        className="text-destructive hover:opacity-80"
-                      >
-                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10" />
-                          <line x1="12" y1="8" x2="12" y2="12" />
-                          <line x1="12" y1="16" x2="12.01" y2="16" />
+              <div className={cn("flex items-end gap-1", group.isMine ? "flex-row-reverse" : "flex-row")}>
+                <div
+                  className={cn(
+                    "max-w-[75vw] sm:max-w-[60%] px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap",
+                    group.isMine
+                      ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
+                      : "bg-muted text-foreground rounded-2xl rounded-bl-sm",
+                    i > 0 && group.isMine && "rounded-tr-lg",
+                    i > 0 && !group.isMine && "rounded-tl-lg",
+                    isPending && "opacity-80"
+                  )}
+                >
+                  {linkify(msg.text)}
+                  {isPending && (
+                    <span className="inline-flex items-center gap-1 ml-1 align-middle">
+                      {pending!.status === "sending" ? (
+                        <svg className="w-3 h-3 opacity-60 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" strokeDasharray="31.416" strokeDashoffset="10" strokeLinecap="round" />
                         </svg>
-                      </button>
-                    )}
-                  </span>
+                      ) : (
+                        <button
+                          onClick={() => onRetry?.(pending!)}
+                          title="Tap to retry"
+                          className="text-destructive hover:opacity-80"
+                        >
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+                {canDelete && onDelete && (
+                  <div className="opacity-30 hover:opacity-100 active:opacity-100 transition-opacity">
+                    <DeleteButton onDelete={() => onDelete(serverMsg!.id)} />
+                  </div>
                 )}
               </div>
             )}
@@ -373,6 +427,7 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [pendingImageId, setPendingImageId] = useState<string | null>(null)
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -467,13 +522,17 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
 
   useRealtime({
     channels: [roomId],
-    events: ["chat.message", "chat.destroy", "chat.typing", "chat.presence"],
+    events: ["chat.message", "chat.destroy", "chat.typing", "chat.presence", "chat.delete"],
     onData: ({ event, data }) => {
       if (event === "chat.message") {
         queryClient.invalidateQueries({ queryKey: ["messages", roomId] })
       }
       if (event === "chat.destroy") {
         startTransition(() => router.push("/?destroyed=true"))
+      }
+      if (event === "chat.delete") {
+        const d = data as { messageId: string }
+        setDeletedIds((prev) => new Set([...prev, d.messageId]))
       }
       if (event === "chat.typing") {
         const d = data as { username: string }
@@ -506,6 +565,21 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
     onSuccess: () => setDestroyOpen(false),
   })
 
+  const { mutate: deleteMessage } = useMutation({
+    mutationFn: async (messageId: string) => {
+      const res = await fetch(`/api/messages/${messageId}?roomId=${roomId}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error("Delete failed")
+    },
+  })
+
+  const handleDelete = useCallback((messageId: string) => {
+    setDeletedIds((prev) => new Set([...prev, messageId]))
+    deleteMessage(messageId)
+  }, [deleteMessage])
+
   const scrollToBottom = useCallback((smooth = false) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" })
   }, [])
@@ -518,7 +592,10 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
     if (isAtBottomRef.current) setShowNewMessages(false)
   }, [])
 
-  const allMessages = useMemo(() => (messagesData?.messages ?? []) as MessageType[], [messagesData])
+  const allMessages = useMemo(
+    () => ((messagesData?.messages ?? []) as MessageType[]).filter((m) => !deletedIds.has(m.id)),
+    [messagesData, deletedIds]
+  )
   const isVirtualized = allMessages.length > VIRTUAL_THRESHOLD
   const displayedMessages = useMemo(() => {
     if (!isVirtualized) return allMessages
@@ -727,6 +804,7 @@ export default function ChatPage({ otherParticipant, viewerUsername }: ChatPageP
             group={group}
             roomId={roomId}
             onRetry={handleRetry}
+            onDelete={handleDelete}
           />
         ))}
 

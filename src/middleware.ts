@@ -93,17 +93,15 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/?error=unauthorized", req.url))
     }
 
+    // User is a confirmed participant — always issue a fresh token.
+    // We intentionally do NOT block participants with a "room full" check;
+    // the participant list is the only gate that matters.
     const connected = parseConnected(meta.connected)
     const existingToken = req.cookies.get("x-auth-token")?.value
 
+    // If they already have a valid token for this room, let them straight through.
     if (existingToken && connected.includes(existingToken)) {
       return NextResponse.next()
-    }
-
-    const maxConnected = meta.maxConnected ?? 2
-
-    if (connected.length >= maxConnected) {
-      return NextResponse.redirect(new URL("/?error=room-full", req.url))
     }
 
     const response = NextResponse.next()
@@ -116,8 +114,11 @@ export async function middleware(req: NextRequest) {
       sameSite: "strict",
     })
 
+    // Keep the connected list bounded so it doesn't grow forever across sessions.
+    const MAX_TOKENS = 20
+    const trimmed = connected.slice(-(MAX_TOKENS - 1))
     await redis.hset(`meta:${roomId}`, {
-      connected: [...connected, token],
+      connected: [...trimmed, token],
     })
 
     return response

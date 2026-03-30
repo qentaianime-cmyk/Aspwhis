@@ -107,15 +107,55 @@ const messages = new Elysia({ prefix: "/messages" })
   .get(
     "/",
     async ({ auth }) => {
-      const messages = await redis.lrange<Message>(`messages:${auth.roomId}`, 0, -1)
+      const [messages, deletedIds] = await Promise.all([
+        redis.lrange<Message>(`messages:${auth.roomId}`, 0, -1),
+        redis.smembers<string[]>(`deleted-msgs:${auth.roomId}`),
+      ])
+      const deletedSet = new Set(deletedIds ?? [])
       return {
-        messages: messages.map((m) => ({
-          ...m,
-          token: m.token === auth.token ? auth.token : undefined,
-        })),
+        messages: messages
+          .filter((m) => !deletedSet.has(m.id))
+          .map((m) => ({
+            ...m,
+            token: m.token === auth.token ? auth.token : undefined,
+          })),
       }
     },
     { query: z.object({ roomId: z.string() }) }
+  )
+  .delete(
+    "/:messageId",
+    async ({ auth, params, set }) => {
+      const { messageId } = params
+      const TWO_MINUTES = 2 * 60 * 1000
+
+      const messages = await redis.lrange<Message>(`messages:${auth.roomId}`, 0, -1)
+      const msg = messages.find((m) => m.id === messageId)
+
+      if (!msg) {
+        set.status = 404
+        return { error: "Message not found" }
+      }
+
+      if (msg.sender !== auth.username) {
+        set.status = 403
+        return { error: "You can only delete your own messages" }
+      }
+
+      if (Date.now() - msg.timestamp > TWO_MINUTES) {
+        set.status = 403
+        return { error: "Message can only be deleted within 2 minutes" }
+      }
+
+      const ttl = await redis.ttl(`meta:${auth.roomId}`)
+      await redis.sadd(`deleted-msgs:${auth.roomId}`, messageId)
+      if (ttl > 0) {
+        await redis.expire(`deleted-msgs:${auth.roomId}`, ttl)
+      }
+
+      await realtime.channel(auth.roomId).emit("chat.delete", { messageId })
+    },
+    { query: z.object({ roomId: z.string() }), params: z.object({ messageId: z.string() }) }
   )
 
 const app = new Elysia({ prefix: "/api" }).use(rooms).use(messages)

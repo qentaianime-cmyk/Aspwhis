@@ -25,6 +25,9 @@ const schema = {
       username: z.string(),
       status: z.enum(["online", "away"]),
     }),
+    delete: z.object({
+      messageId: z.string(),
+    }),
   },
 }
 
